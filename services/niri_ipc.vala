@@ -45,7 +45,7 @@ namespace Topbar {
           }
 
           print ("\n=========\n");
-          print (line);
+          print (@"$(new DateTime.now_local().to_string ()) | $line");
 
           handle_line (line);
 
