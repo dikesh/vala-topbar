@@ -20,6 +20,7 @@ executable(
     'bar_center.vala',
     'bar_right.vala',
     'services/niri_events.vala',
+    'services/services.vala',
   ],
   dependencies: [gtk4, layershell, gio, gio_unix, json],
 )

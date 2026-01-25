@@ -4,7 +4,7 @@ namespace Topbar {
 
   public class App : Gtk.Application {
 
-    private NiriIPC niri_ipc;
+    public Services services { get; private set; }
     private HashTable<Gdk.Monitor, Bar> bars;
 
     public App () {
@@ -14,13 +14,13 @@ namespace Topbar {
     protected override void startup () {
       base.startup ();
 
-      bars = new HashTable<Gdk.Monitor, Bar> (direct_hash, direct_equal);
-
       try {
-        niri_ipc = new NiriIPC ();
+        services = new Services ();
       } catch (Error e) {
-        critical ("Failed to init Niri IPC: %s", e.message);
+        critical ("Failed to init services: %s", e.message);
       }
+
+      bars = new HashTable<Gdk.Monitor, Bar> (direct_hash, direct_equal);
     }
 
     protected override void activate () {
@@ -58,7 +58,7 @@ namespace Topbar {
       if (bars.contains (monitor))
         return;
 
-      var bar = new Bar (this, monitor, niri_ipc);
+      var bar = new Bar (this, monitor);
       bars.insert (monitor, bar);
       bar.present ();
     }

@@ -3,7 +3,7 @@ using Gtk;
 namespace Topbar {
   public class Bar : Gtk.ApplicationWindow {
 
-    public Bar (Gtk.Application app, Gdk.Monitor monitor, NiriIPC events) {
+    public Bar (Gtk.Application app, Gdk.Monitor monitor) {
       // Init
       Object (application: app, title: "Topbar");
       set_css_classes ({ "bar-container" });
@@ -33,7 +33,7 @@ namespace Topbar {
       // Center box
       var cb = new CenterBox ();
 
-      cb.set_start_widget (new Topbar.WorkspaceBar (events));
+      cb.set_start_widget (new WorkspaceBar ());
       cb.set_center_widget (new BarCenter ());
       cb.set_end_widget (new Label ("This is End"));
 

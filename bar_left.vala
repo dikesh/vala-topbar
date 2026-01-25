@@ -2,11 +2,17 @@ namespace Topbar {
 
   public class WorkspaceBar : Gtk.Box {
 
-    public WorkspaceBar(NiriIPC niri_ipc) {
+    public WorkspaceBar() {
       orientation = Gtk.Orientation.HORIZONTAL;
       spacing = 6;
 
-      niri_ipc.event_received.connect(on_event);
+      var app = (Topbar.App) GLib.Application.get_default();
+      var niri = app.services.niri;
+      niri.event_received.connect(on_event);
+
+      this.destroy.connect(() => {
+        niri.event_received.disconnect(on_event);
+      });
     }
 
     string json_object_to_string(Json.Object obj) {
