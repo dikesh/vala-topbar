@@ -2,11 +2,11 @@ namespace Topbar {
 
   public class WorkspaceBar : Gtk.Box {
 
-    public WorkspaceBar(NiriEvents events) {
+    public WorkspaceBar(NiriIPC niri_ipc) {
       orientation = Gtk.Orientation.HORIZONTAL;
       spacing = 6;
 
-      events.event_received.connect(on_event);
+      niri_ipc.event_received.connect(on_event);
     }
 
     string json_object_to_string(Json.Object obj) {
@@ -30,7 +30,7 @@ namespace Topbar {
       };
 
       foreach (var event in events) {
-        if (msg.has_member(event)) {
+        if (msg.has_member(event + "1")) {
           print("\n=================\n");
           print(new DateTime.now_local().to_string() + " | " + json_object_to_string(msg));
         }

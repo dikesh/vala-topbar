@@ -3,47 +3,90 @@ using Json;
 
 namespace Topbar {
 
-  public class NiriEvents : GLib.Object {
+  public class NiriIPC : GLib.Object {
 
-    private Subprocess proc;
-    private DataInputStream input;
+    private SocketConnection conn;
+    private DataOutputStream output_stream;
+    private DataInputStream input_stream;
 
     public signal void event_received (Json.Object event);
+    public signal void disconnected ();
 
-    public NiriEvents () throws Error {
-      proc = new Subprocess.newv (
-                                  { "niri", "msg", "--json", "event-stream" },
-                                  SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
-      );
+    public NiriIPC () throws Error {
+      string? path = Environment.get_variable ("NIRI_SOCKET");
+      if (path == null)
+        throw new IOError.NOT_FOUND ("NIRI_SOCKET not set");
 
-      input = new DataInputStream (proc.get_stdout_pipe ());
+      var client = new SocketClient ();
+      conn = client.connect (new UnixSocketAddress (path), null);
 
-      start_reader ();
+      input_stream = new DataInputStream (conn.input_stream);
+      output_stream = new DataOutputStream (conn.output_stream);
+
+      // Request event stream
+      send ("\"EventStream\"");
+
+      // Start async read loop
+      read_next_line ();
     }
 
-    private void start_reader () {
-      new Thread<void> ("niri-event-stream", () => {
+    private void send (string line) throws Error {
+      output_stream.put_string (line + "\n");
+      output_stream.flush ();
+    }
+
+    private void read_next_line () {
+      input_stream.read_line_async.begin (Priority.DEFAULT, null, (obj, res) => {
         try {
-          while (true) {
-            string? line = input.read_line (null);
-            if (line == null)
-              break;
-
-            var parser = new Json.Parser ();
-            parser.load_from_data (line, -1);
-
-            var obj = parser.get_root ().get_object ();
-
-            // Hop back to GTK main loop
-            Idle.add (() => {
-              event_received (obj);
-              return false;
-            });
+          string? line = input_stream.read_line_async.end (res);
+          if (line == null) {
+            disconnected ();
+            return;
           }
+
+          print ("\n=========\n");
+          print (line);
+
+          handle_line (line);
+
+          // Schedule next read
+          read_next_line ();
         } catch (Error e) {
-          warning ("niri event stream stopped: %s", e.message);
+          warning ("IPC read error: %s", e.message);
+          disconnected ();
         }
       });
+    }
+
+    private void handle_line (string line) {
+      try {
+        var parser = new Json.Parser ();
+        parser.load_from_data (line, -1);
+
+        var root = parser.get_root ();
+        if (root.get_node_type () != Json.NodeType.OBJECT)
+          return;
+
+        event_received (root.get_object ());
+      } catch (Error e) {
+        warning ("Failed to parse IPC message: %s", e.message);
+      }
+    }
+
+    public void focus_workspace (int index) throws Error {
+      var inner = new Json.Object ();
+      inner.set_int_member ("index", index);
+
+      var obj = new Json.Object ();
+      obj.set_object_member ("FocusWorkspace", inner);
+
+      var node = new Json.Node (Json.NodeType.OBJECT);
+      node.set_object (obj);
+
+      var gen = new Json.Generator ();
+      gen.set_root (node);
+
+      send (gen.to_data (null));
     }
   }
 }

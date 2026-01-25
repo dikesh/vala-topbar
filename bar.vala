@@ -3,7 +3,7 @@ using Gtk;
 namespace Topbar {
   public class Bar : Gtk.ApplicationWindow {
 
-    public Bar (Gtk.Application app, Gdk.Monitor monitor, NiriEvents events) {
+    public Bar (Gtk.Application app, Gdk.Monitor monitor, NiriIPC events) {
       // Init
       Object (application: app, title: "Topbar");
       set_css_classes ({ "bar-container" });
