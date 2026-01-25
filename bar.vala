@@ -3,7 +3,7 @@ using Gtk;
 namespace Topbar {
   public class Bar : Gtk.ApplicationWindow {
 
-    public Bar (Gtk.Application app) {
+    public Bar (Gtk.Application app, Gdk.Monitor monitor, NiriEvents events) {
       // Init
       Object (application: app, title: "Topbar");
       set_css_classes ({ "bar-container" });
@@ -16,6 +16,7 @@ namespace Topbar {
 
       // Layer shell settings
       GtkLayerShell.init_for_window (this);
+      GtkLayerShell.set_monitor (this, monitor);
       GtkLayerShell.set_layer (this, GtkLayerShell.Layer.TOP);
 
       GtkLayerShell.set_anchor (this, GtkLayerShell.Edge.TOP, true);
@@ -28,15 +29,15 @@ namespace Topbar {
       // Optional: avoid focus stealing
       GtkLayerShell.set_keyboard_mode (this, GtkLayerShell.KeyboardMode.NONE);
 
+
       // Center box
       var cb = new CenterBox ();
 
-      var events = new Topbar.NiriEvents ();
       cb.set_start_widget (new Topbar.WorkspaceBar (events));
-
       cb.set_center_widget (new BarCenter ());
       cb.set_end_widget (new Label ("This is End"));
 
+      // Centerbox as immediate child of Application Window
       set_child (cb);
     }
   }
