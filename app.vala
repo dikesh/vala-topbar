@@ -4,23 +4,72 @@ namespace Topbar {
 
   public class App : Gtk.Application {
 
-    public App() {
-      Object(application_id: "com.arch.Topbar");
+    private NiriIPC niri_ipc;
+    private HashTable<Gdk.Monitor, Bar> bars;
+
+    public App () {
+      Object (application_id: "com.arch.Topbar");
     }
 
-    public override void activate() {
-      try {
-        // Init Niri events
-        var niri_ipc = new Topbar.NiriIPC();
+    protected override void startup () {
+      base.startup ();
 
-        // Application window for each monitor
-        var model = Gdk.Display.get_default().get_monitors();
-        for (var i = 0; i < model.get_n_items(); i++) {
-          new Bar(this, (Gdk.Monitor) model.get_item(i), niri_ipc).present();
-        }
+      bars = new HashTable<Gdk.Monitor, Bar> (direct_hash, direct_equal);
+
+      try {
+        niri_ipc = new NiriIPC ();
       } catch (Error e) {
-        critical("Failed to init Niri IPC: %s", e.message);
+        critical ("Failed to init Niri IPC: %s", e.message);
       }
+    }
+
+    protected override void activate () {
+      var display = Gdk.Display.get_default ();
+      var monitors = display.get_monitors ();
+
+      // Initial bars
+      for (uint i = 0; i < monitors.get_n_items (); i++) {
+        var monitor = (Gdk.Monitor) monitors.get_item (i);
+        add_bar (monitor);
+      }
+
+      // Hotplug
+      monitors.items_changed.connect (on_monitors_changed);
+    }
+
+    private void on_monitors_changed (uint position, uint removed, uint added) {
+      var monitors = Gdk.Display.get_default ().get_monitors ();
+
+      // Remove bars
+      for (uint i = 0; i < removed; i++) {
+        var monitor = bars.get_keys ().nth_data ((int) position);
+        if (monitor != null)
+          remove_bar (monitor);
+      }
+
+      // Add bars
+      for (uint i = 0; i < added; i++) {
+        var monitor = (Gdk.Monitor) monitors.get_item (position + i);
+        add_bar (monitor);
+      }
+    }
+
+    private void add_bar (Gdk.Monitor monitor) {
+      if (bars.contains (monitor))
+        return;
+
+      var bar = new Bar (this, monitor, niri_ipc);
+      bars.insert (monitor, bar);
+      bar.present ();
+    }
+
+    private void remove_bar (Gdk.Monitor monitor) {
+      var bar = bars.lookup (monitor);
+      if (bar == null)
+        return;
+
+      bar.close ();
+      bars.remove (monitor);
     }
   }
 }
