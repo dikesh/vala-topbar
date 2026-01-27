@@ -44,8 +44,8 @@ namespace Topbar {
             return;
           }
 
-          print ("\n=========\n");
-          print (@"$(new DateTime.now_local().to_string ()) | $line");
+          // print ("\n=========\n");
+          // print (@"$(new DateTime.now_local().to_string ()) | $line");
 
           handle_line (line);
 

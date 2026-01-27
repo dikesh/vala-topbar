@@ -35,7 +35,7 @@ namespace Topbar {
 
       cb.set_start_widget (new BarLeft ());
       cb.set_center_widget (new BarCenter ());
-      cb.set_end_widget (new Label ("This is End"));
+      cb.set_end_widget (new BarRight ());
 
       // Centerbox as immediate child of Application Window
       set_child (cb);
