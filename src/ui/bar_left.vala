@@ -4,6 +4,7 @@ namespace Topbar {
 
     public BarLeft () {
       Object (spacing: 8);
+      append (new SystemResources ());
       append (new Apps ());
     }
   }

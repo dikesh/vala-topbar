@@ -15,8 +15,10 @@ executable(
     'ui/bar_right.vala',
     'ui/applications.vala',
     'ui/niri_workspaces.vala',
+    'ui/system_resources.vala',
     'services/niri_ipc.vala',
     'services/services.vala',
+    'services/avg_cpu.vala',
   ],
   dependencies: [gtk4, layershell, gio, gio_unix, json],
 )
