@@ -40,10 +40,7 @@ namespace Topbar {
 
     public MemoryService (uint interval_seconds = 2) {
       refresh ();
-      Timeout.add_seconds (interval_seconds, () => {
-        refresh ();
-        return true;
-      });
+      Timeout.add_seconds (interval_seconds, () => { refresh (); return true; });
     }
 
     private void refresh () {
@@ -83,6 +80,99 @@ namespace Topbar {
     private string format_gi (uint64 kb) {
       double gi = kb / (1024.0 * 1024.0);
       return "%.1fGi".printf (gi);
+    }
+  }
+
+  // ---------------- CPU Temperature Service --------------------
+  public class TemperatureService : Object {
+
+    public double temp_c { get; private set; }
+    public signal void updated ();
+
+    public TemperatureService (uint interval_seconds = 10) {
+      refresh ();
+      Timeout.add_seconds (interval_seconds, () => { refresh (); return true; });
+    }
+
+    private void refresh () {
+      double? t = read_x86_pkg_temp ();
+      if (t == null)
+        return;
+
+      temp_c = t;
+      updated ();
+    }
+
+    private double ? read_x86_pkg_temp () {
+      try {
+        var dir = File.new_for_path ("/sys/class/thermal");
+        var enumerator = dir.enumerate_children (FileAttribute.STANDARD_NAME, FileQueryInfoFlags.NONE);
+
+        FileInfo info;
+        while ((info = enumerator.next_file ()) != null) {
+          if (!info.get_name ().has_prefix ("thermal_zone"))
+            continue;
+
+          string basepath = "/sys/class/thermal/" + info.get_name ();
+          string type_path = basepath + "/type";
+          string temp_path = basepath + "/temp";
+
+          string type;
+          if (!FileUtils.get_contents (type_path, out type))
+            continue;
+
+          if (type.strip ().down () == "x86_pkg_temp") {
+            string temp;
+            if (FileUtils.get_contents (temp_path, out temp))
+              return double.parse (temp.strip ()) / 1000.0;
+          }
+        }
+      } catch (Error e) {
+        warning ("Temp read error: %s", e.message);
+      }
+
+      return null;
+    }
+  }
+
+  // ---------------- Root Usage Service --------------------
+  public class DiskService : Object {
+
+    public string total_gi { get; private set; }
+    public string used_gi { get; private set; }
+    public string available_gi { get; private set; }
+
+    public signal void updated ();
+
+    public DiskService (uint interval_seconds = 15) {
+      refresh ();
+      Timeout.add_seconds (interval_seconds, () => { refresh (); return true; });
+    }
+
+    private void refresh () {
+      try {
+        var file = File.new_for_path ("/");
+        var info = file.query_filesystem_info (
+                                               "filesystem::size,filesystem::free",
+                                               null
+        );
+
+        uint64 total = info.get_attribute_uint64 ("filesystem::size");
+        uint64 avail = info.get_attribute_uint64 ("filesystem::free");
+
+        total_gi = format_gi (total / 1024);
+        available_gi = format_gi (avail / 1024);
+        used_gi = format_gi ((total - avail) / 1024);
+
+        updated ();
+      } catch (Error e) {
+        warning ("Disk service error: %s", e.message);
+      }
+    }
+
+    private string format_gi (uint64 kb) {
+      double gi = kb / (1024.0 * 1024.0);
+      return "%.0fGi".printf (gi);
     }
   }
 }
