@@ -11,10 +11,10 @@ namespace Topbar {
       set_css_classes ({ "system-resource-widget" });
 
       var app = (Topbar.App) GLib.Application.get_default ();
-      var avg_cpu = app.services.avg_cpu;
+      var cpu = app.services.avg_cpu;
 
-      var cpu_usage = new Label (avg_cpu.current ());
-      avg_cpu.updated.connect ((load) => { cpu_usage.label = load; });
+      var cpu_usage = new Label (cpu.avg_cpu);
+      cpu.updated.connect (() => { cpu_usage.label = cpu.avg_cpu; });
 
       append (new Label ("󰌢"));
       append (cpu_usage);
