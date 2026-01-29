@@ -3,16 +3,15 @@ namespace Topbar {
   public class NiriWorkspaces : Gtk.Box {
 
     public NiriWorkspaces() {
-      orientation = Gtk.Orientation.HORIZONTAL;
-      spacing = 6;
+      Object(orientation: Gtk.Orientation.HORIZONTAL, spacing: 6);
 
-      var app = (Topbar.App) GLib.Application.get_default();
-      var niri = app.services.niri;
-      niri.event_received.connect(on_event);
-
-      this.destroy.connect(() => {
-        niri.event_received.disconnect(on_event);
-      });
+      try {
+        var niri = NiriIPC.get_default();
+        niri.event_received.connect(on_event);
+        this.destroy.connect(() => { niri.event_received.disconnect(on_event); });
+      } catch (Error e) {
+        critical("Failed to init Niri IPC: %s", e.message);
+      }
     }
 
     private void on_event(Json.Object msg) {

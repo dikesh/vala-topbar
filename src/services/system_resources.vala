@@ -5,10 +5,18 @@ namespace Topbar {
   // ---------------- CPU Service --------------------
   public class CPUService : Object {
 
+    private static CPUService? instance = null;
+
     public string avg_cpu { get; private set; }
     public signal void updated ();
 
-    public CPUService (uint interval_seconds = 10) {
+    public static CPUService get_default (uint interval_seconds = 10) {
+      if (instance == null)
+        instance = new CPUService (interval_seconds);
+      return instance;
+    }
+
+    private CPUService (uint interval_seconds) {
       // Emit once immediately and then periodic
       update ();
       Timeout.add_seconds (interval_seconds, () => { update (); return true; });
@@ -32,13 +40,21 @@ namespace Topbar {
   // ---------------- Memory Service --------------------
   public class MemoryService : Object {
 
+    private static MemoryService? instance = null;
+
     public string total_gi { get; private set; }
     public string used_gi { get; private set; }
     public string available_gi { get; private set; }
 
     public signal void updated ();
 
-    public MemoryService (uint interval_seconds = 2) {
+    public static MemoryService get_default (uint interval_seconds = 2) {
+      if (instance == null)
+        instance = new MemoryService (interval_seconds);
+      return instance;
+    }
+
+    private MemoryService (uint interval_seconds) {
       refresh ();
       Timeout.add_seconds (interval_seconds, () => { refresh (); return true; });
     }
@@ -86,10 +102,18 @@ namespace Topbar {
   // ---------------- CPU Temperature Service --------------------
   public class TemperatureService : Object {
 
+    private static TemperatureService? instance = null;
+
     public double temp_c { get; private set; }
     public signal void updated ();
 
-    public TemperatureService (uint interval_seconds = 10) {
+    public static TemperatureService get_default (uint interval_seconds = 10) {
+      if (instance == null)
+        instance = new TemperatureService (interval_seconds);
+      return instance;
+    }
+
+    private TemperatureService (uint interval_seconds) {
       refresh ();
       Timeout.add_seconds (interval_seconds, () => { refresh (); return true; });
     }
@@ -138,13 +162,21 @@ namespace Topbar {
   // ---------------- Root Usage Service --------------------
   public class DiskService : Object {
 
+    private static DiskService? instance = null;
+
     public string total_gi { get; private set; }
     public string used_gi { get; private set; }
     public string available_gi { get; private set; }
 
     public signal void updated ();
 
-    public DiskService (uint interval_seconds = 15) {
+    public static DiskService get_default (uint interval_seconds = 15) {
+      if (instance == null)
+        instance = new DiskService (interval_seconds);
+      return instance;
+    }
+
+    private DiskService (uint interval_seconds) {
       refresh ();
       Timeout.add_seconds (interval_seconds, () => { refresh (); return true; });
     }

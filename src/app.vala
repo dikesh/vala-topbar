@@ -4,7 +4,6 @@ namespace Topbar {
 
   public class App : Gtk.Application {
 
-    public Services services { get; private set; }
     private HashTable<Gdk.Monitor, Bar> bars;
 
     public App () {
@@ -13,13 +12,6 @@ namespace Topbar {
 
     protected override void startup () {
       base.startup ();
-
-      try {
-        services = new Services ();
-      } catch (Error e) {
-        critical ("Failed to init services: %s", e.message);
-      }
-
       bars = new HashTable<Gdk.Monitor, Bar> (direct_hash, direct_equal);
     }
 

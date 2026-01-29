@@ -5,6 +5,8 @@ namespace Topbar {
 
   public class NiriIPC : GLib.Object {
 
+    private static NiriIPC? instance = null;
+
     private SocketConnection conn;
     private DataOutputStream output_stream;
     private DataInputStream input_stream;
@@ -12,7 +14,13 @@ namespace Topbar {
     public signal void event_received (Json.Object event);
     public signal void disconnected ();
 
-    public NiriIPC () throws Error {
+    public static NiriIPC get_default () throws Error {
+      if (instance == null)
+        instance = new NiriIPC ();
+      return instance;
+    }
+
+    private NiriIPC () throws Error {
       string? path = Environment.get_variable ("NIRI_SOCKET");
       if (path == null)
         throw new IOError.NOT_FOUND ("NIRI_SOCKET not set");
@@ -44,8 +52,8 @@ namespace Topbar {
             return;
           }
 
-          // print ("\n=========\n");
-          // print (@"$(new DateTime.now_local().to_string ()) | $line");
+          print ("\n=========\n");
+          print (@"$(new DateTime.now_local().to_string ()) | $line");
 
           handle_line (line);
 
