@@ -104,7 +104,7 @@ namespace Topbar {
 
       // Open btop on box click
       var gesture = new GestureClick();
-      gesture.pressed.connect(() => { Utils.run_script_async({ "kitty", "-e", "btop" }); });
+      gesture.pressed.connect(Utils.launch_btop);
       add_controller(gesture);
     }
   }
