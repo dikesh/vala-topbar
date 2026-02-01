@@ -32,8 +32,8 @@ namespace Topbar {
     public static async void launch_color_picker () {
       try {
         var subprocess = new Subprocess.newv (
-                                              { "niri", "msg", "pick-color" },
-                                              SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
+          { "niri", "msg", "pick-color" },
+          SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
         );
 
         Bytes stdout, stderr;

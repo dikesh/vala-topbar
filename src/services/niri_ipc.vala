@@ -5,7 +5,7 @@ namespace Topbar {
 
   public class NiriIPC : GLib.Object {
 
-    private static NiriIPC? instance = null;
+    private static NiriIPC ? instance = null;
 
     private SocketConnection conn;
     private DataOutputStream output_stream;
@@ -21,7 +21,7 @@ namespace Topbar {
     }
 
     private NiriIPC () throws Error {
-      string? path = Environment.get_variable ("NIRI_SOCKET");
+      string ? path = Environment.get_variable ("NIRI_SOCKET");
       if (path == null)
         throw new IOError.NOT_FOUND ("NIRI_SOCKET not set");
 
@@ -46,7 +46,7 @@ namespace Topbar {
     private void read_next_line () {
       input_stream.read_line_async.begin (Priority.DEFAULT, null, (obj, res) => {
         try {
-          string? line = input_stream.read_line_async.end (res);
+          string ? line = input_stream.read_line_async.end (res);
           if (line == null) {
             disconnected ();
             return;
