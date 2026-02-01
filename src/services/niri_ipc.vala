@@ -1,4 +1,3 @@
-using GLib;
 using Json;
 
 namespace Topbar {

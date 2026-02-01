@@ -18,6 +18,7 @@ executable(
     'services/utils.vala',
     'services/niri_ipc.vala',
     'services/system_resources.vala',
+    'services/screen_rec.vala',
   ],
   dependencies: [gtk4, layershell, gio, gio_unix, json],
 )
