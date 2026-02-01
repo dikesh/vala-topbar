@@ -13,6 +13,15 @@ namespace Topbar {
     }
   }
 
+  private class ColorPicker : Button {
+
+    public ColorPicker () {
+      set_css_classes ({ "bar-section", "apps" });
+      child = new Label ("");
+      clicked.connect (Utils.launch_color_picker);
+    }
+  }
+
   // -------------- BarLeft ----------------
   public class BarLeft : Gtk.Box {
 
@@ -20,6 +29,7 @@ namespace Topbar {
       Object (spacing: 8);
       append (new SystemResources ());
       append (new Apps ());
+      append (new ColorPicker ());
     }
   }
 }

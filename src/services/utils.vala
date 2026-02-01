@@ -28,5 +28,36 @@ namespace Topbar {
     public static void launch_btop () {
       Utils.run_script_async ({ "kitty", "-e", "btop" });
     }
+
+    public static async void launch_color_picker () {
+      try {
+        var subprocess = new Subprocess.newv (
+                                              { "niri", "msg", "pick-color" },
+                                              SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
+        );
+
+        Bytes stdout, stderr;
+        yield subprocess.communicate_async (null, null, out stdout, out stderr);
+
+        string output = (string) stdout.get_data ();
+        output = output.strip ();
+
+        if (subprocess.get_exit_status () == 0 && output.length > 0) {
+          if (output == "No color was picked.")return;
+
+          // Extract color and copy to clipboard
+          var color = "#" + output.split ("#")[1];
+          Utils.run_script_async ({ "wl-copy", "-n", color });
+
+          // Send Notification
+          var msg = @"\n<span color='$color'><i><b>$color</b></i></span> copied to clipboard";
+          Utils.run_script_async ({ "notify-send", "Color Picker", msg });
+        } else {
+          printerr ("Error: %s\n", (string) stderr.get_data ());
+        }
+      } catch (Error e) {
+        warning ("Failed to run script: %s", e.message);
+      }
+    }
   }
 }
