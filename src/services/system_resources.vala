@@ -5,7 +5,7 @@ namespace Topbar {
   // ---------------- CPU Service --------------------
   public class CPUService : Object {
 
-    private static CPUService? instance = null;
+    private static CPUService ? instance = null;
 
     public string avg_cpu { get; private set; }
     public signal void updated ();
@@ -40,7 +40,7 @@ namespace Topbar {
   // ---------------- Memory Service --------------------
   public class MemoryService : Object {
 
-    private static MemoryService? instance = null;
+    private static MemoryService ? instance = null;
 
     public string total_gi { get; private set; }
     public string used_gi { get; private set; }
@@ -102,7 +102,7 @@ namespace Topbar {
   // ---------------- CPU Temperature Service --------------------
   public class TemperatureService : Object {
 
-    private static TemperatureService? instance = null;
+    private static TemperatureService ? instance = null;
 
     public double temp_c { get; private set; }
     public signal void updated ();
@@ -119,7 +119,7 @@ namespace Topbar {
     }
 
     private void refresh () {
-      double? t = read_x86_pkg_temp ();
+      double ? t = read_x86_pkg_temp ();
       if (t == null)
         return;
 
@@ -130,7 +130,10 @@ namespace Topbar {
     private double ? read_x86_pkg_temp () {
       try {
         var dir = File.new_for_path ("/sys/class/thermal");
-        var enumerator = dir.enumerate_children (FileAttribute.STANDARD_NAME, FileQueryInfoFlags.NONE);
+        var enumerator = dir.enumerate_children (
+          FileAttribute.STANDARD_NAME,
+          FileQueryInfoFlags.NONE
+        );
 
         FileInfo info;
         while ((info = enumerator.next_file ()) != null) {
@@ -162,7 +165,7 @@ namespace Topbar {
   // ---------------- Root Usage Service --------------------
   public class DiskService : Object {
 
-    private static DiskService? instance = null;
+    private static DiskService ? instance = null;
 
     public string total_gi { get; private set; }
     public string used_gi { get; private set; }
@@ -184,10 +187,7 @@ namespace Topbar {
     private void refresh () {
       try {
         var file = File.new_for_path ("/");
-        var info = file.query_filesystem_info (
-                                               "filesystem::size,filesystem::free",
-                                               null
-        );
+        var info = file.query_filesystem_info ("filesystem::size,filesystem::free", null);
 
         uint64 total = info.get_attribute_uint64 ("filesystem::size");
         uint64 avail = info.get_attribute_uint64 ("filesystem::free");

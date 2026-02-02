@@ -3,6 +3,7 @@ layershell = dependency('gtk4-layer-shell-0')
 gio = dependency('gio-2.0')
 gio_unix = dependency('gio-unix-2.0')
 json = dependency('json-glib-1.0')
+m = meson.get_compiler('c').find_library('m')
 
 executable(
   'topbar',
@@ -19,6 +20,7 @@ executable(
     'services/niri_ipc.vala',
     'services/system_resources.vala',
     'services/screen_rec.vala',
+    'services/battery.vala',
   ],
-  dependencies: [gtk4, layershell, gio, gio_unix, json],
+  dependencies: [gtk4, layershell, gio, gio_unix, json, m],
 )
