@@ -33,7 +33,7 @@ namespace Topbar {
       // Center box
       var cb = new CenterBox ();
 
-      cb.set_start_widget (new BarLeft ());
+      cb.set_start_widget (new BarLeft (monitor));
       cb.set_center_widget (new BarCenter ());
       cb.set_end_widget (new BarRight ());
 

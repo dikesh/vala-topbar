@@ -76,11 +76,12 @@ namespace Topbar {
   // -------------- BarLeft ----------------
   public class BarLeft : Gtk.Box {
 
-    public BarLeft () {
+    public BarLeft (Gdk.Monitor monitor) {
       Object (spacing: 8);
       append (new SystemResources ());
       append (new Apps ());
       append (new Tools ());
+      append (new NiriWorkspaces (monitor));
     }
   }
 }
