@@ -25,30 +25,39 @@ namespace Topbar {
   // -------------------- Niri Workspace ----------------------------
   private class WorkspaceBox : Box {
     public int id;
-    public int idx;
-    public bool is_active;
+    public bool is_active { get; set; }
     public bool is_focused { get; set; }
-    private int children_count = 0;
+    public int children_count { get; set; }
 
     public WorkspaceBox (NiriWorkspace workspace, NiriIPC niri) {
-      Object (spacing: 8);
+      Object (spacing: 8, visible: false);
       set_css_classes ({ "hl-workspace" });
 
       id = workspace.id;
-      idx = workspace.idx;
       is_active = workspace.is_active;
       is_focused = workspace.is_focused;
+      children_count = 0;
 
       add_empty_window_box ();
-
       niri.niri_windows.for_each ((_, niri_window) => add_window_box (niri_window));
 
       // Watch for change in focus and active status
       if (is_focused)update_css_classes ();
+      update_visibility ();
 
-      notify["is-focused"].connect ((s, p) => {
-        update_css_classes ();
-      });
+      notify["is-focused"].connect ((s, p) => update_css_classes ());
+      notify["is-active"].connect ((s, p) => update_visibility ());
+      notify["children-count"].connect ((s, p) => update_visibility ());
+    }
+
+    private void update_css_classes () {
+      const string class_to_update = "hl-workspace-active";
+      if (is_focused && (!(class_to_update in css_classes)))add_css_class (class_to_update);
+      else if (!is_focused && class_to_update in css_classes)remove_css_class (class_to_update);
+    }
+
+    private void update_visibility () {
+      visible = is_active || children_count > 0;
     }
 
     public void add_empty_window_box () {
@@ -68,12 +77,6 @@ namespace Topbar {
       remove (win_box);
       if (--children_count == 0)add_empty_window_box ();
       return children_count;
-    }
-
-    private void update_css_classes () {
-      const string class_to_update = "hl-workspace-active";
-      if (is_focused && (!(class_to_update in css_classes)))add_css_class (class_to_update);
-      else if (!is_focused && class_to_update in css_classes)remove_css_class (class_to_update);
     }
 
     public bool remove_window_box_by_id (int window_id) {
@@ -204,10 +207,21 @@ namespace Topbar {
 
     private void on_workspace_focus_changed (int workspace_id) {
       // Iterate on each workspace
+      var output_has_focus = false;
       var ws_box = (WorkspaceBox) get_first_child ();
       while (ws_box != null) {
         ws_box.is_focused = ws_box.id == workspace_id;
+        if (ws_box.is_focused)output_has_focus = true;
         ws_box = (WorkspaceBox) ws_box.get_next_sibling ();
+      }
+
+      // Update Active status
+      if (output_has_focus) {
+        ws_box = (WorkspaceBox) get_first_child ();
+        while (ws_box != null) {
+          ws_box.is_active = ws_box.is_focused;
+          ws_box = (WorkspaceBox) ws_box.get_next_sibling ();
+        }
       }
     }
 
