@@ -53,6 +53,15 @@ namespace Topbar {
       var gesture = new GestureClick ();
       gesture.pressed.connect (() => niri.focus_workspace (id));
       add_controller (gesture);
+
+      // Add scroller
+      var scroll_controller = new EventControllerScroll (EventControllerScrollFlags.VERTICAL);
+      scroll_controller.scroll.connect ((controller, delta_x, delta_y) => {
+        if (delta_y < 0)niri.cycle_windows (id, true);
+        else if (delta_y > 0)niri.cycle_windows (id, false);
+        return true;
+      });
+      add_controller (scroll_controller);
     }
 
     private void update_css_classes () {

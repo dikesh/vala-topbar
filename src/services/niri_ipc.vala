@@ -215,5 +215,16 @@ namespace Topbar {
 
       run_action (action);
     }
+
+    public void cycle_windows (int workspace_id, bool is_up) {
+      var workspace = niri_workspaces.get (workspace_id);
+      if (!workspace.is_focused)focus_workspace (workspace_id);
+
+      var action = new Json.Object ();
+      var empty_object = new Json.Object ();
+      action.set_object_member (is_up ? "FocusColumnLeft" : "FocusColumnRight", empty_object);
+
+      run_action (action);
+    }
   }
 }
