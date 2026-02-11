@@ -14,6 +14,12 @@ namespace Topbar {
       workspace_id = window.workspace_id;
       append (new Image.from_icon_name (window.app_id.ascii_down ()));
     }
+
+    public static WindowBox empty_window_box () {
+      var ws_box = new WindowBox ();
+      ws_box.append (new Image.from_icon_name ("archlinux-logo"));
+      return ws_box;
+    }
   }
 
   // -------------------- Niri Workspace ----------------------------
@@ -33,10 +39,9 @@ namespace Topbar {
       is_active = workspace.is_active;
       is_focused = workspace.is_focused;
 
-      niri.niri_windows.for_each ((_, niri_win) => {
-        if (niri_win.workspace_id == id)
-          append (new WindowBox (niri_win));
-      });
+      add_empty_window_box ();
+
+      niri.niri_windows.for_each ((_, niri_window) => add_window_box (niri_window));
 
       // Watch for change in focus and active status
       if (is_focused)update_css_classes ();
@@ -46,14 +51,23 @@ namespace Topbar {
       });
     }
 
+    public void add_empty_window_box () {
+      append (WindowBox.empty_window_box ());
+    }
+
     public int add_window_box (NiriWindow niri_window) {
+      // Validation
+      if (niri_window.workspace_id != id)return children_count;
+      // Remove empty winow
+      if (children_count == 0)remove (get_first_child ());
       append (new WindowBox (niri_window));
       return ++children_count;
     }
 
     public int remove_window_box (WindowBox win_box) {
       remove (win_box);
-      return --children_count;
+      if (--children_count == 0)add_empty_window_box ();
+      return children_count;
     }
 
     private void update_css_classes () {
