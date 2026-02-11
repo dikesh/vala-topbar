@@ -1,12 +1,24 @@
+using Gtk;
+using Gdk;
+
 namespace Topbar {
 
   public class Utils {
 
     private const string apps_relative_path = ".config/rofi/launchers/type-3/launcher.sh";
     private const string power_menu_relative_path = ".config/rofi/powermenu/type-5/powermenu.sh";
+    private static IconTheme icon_theme;
 
     public static string get_full_path (string relative_path) {
       return Path.build_filename (Environment.get_home_dir (), relative_path);
+    }
+
+    public static bool icon_exists (string icon_name) {
+      if (icon_theme == null) {
+        icon_theme = IconTheme.get_for_display (Display.get_default ());
+        icon_theme.add_search_path ("./assets");
+      }
+      return icon_theme.has_icon (icon_name);
     }
 
     public static void run_script_async (string[] argv) {
