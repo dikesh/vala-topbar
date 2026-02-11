@@ -48,6 +48,11 @@ namespace Topbar {
       notify["is-focused"].connect ((s, p) => update_css_classes ());
       notify["is-active"].connect ((s, p) => update_visibility ());
       notify["children-count"].connect ((s, p) => update_visibility ());
+
+      // Add click gesture
+      var gesture = new GestureClick ();
+      gesture.pressed.connect (() => niri.focus_workspace (id));
+      add_controller (gesture);
     }
 
     private void update_css_classes () {

@@ -36,8 +36,6 @@ namespace Topbar {
 
     private static NiriIPC ? instance = null;
 
-    private SocketConnection conn;
-    private DataOutputStream output_stream;
     private DataInputStream input_stream;
 
     public HashTable<int, NiriWorkspace> niri_workspaces;
@@ -55,19 +53,23 @@ namespace Topbar {
       return instance;
     }
 
-    private NiriIPC () throws Error {
+    private SocketConnection get_socket_connection () throws Error {
       string ? path = Environment.get_variable ("NIRI_SOCKET");
       if (path == null)
         throw new IOError.NOT_FOUND ("NIRI_SOCKET not set");
 
-      var client = new SocketClient ();
-      conn = client.connect (new UnixSocketAddress (path), null);
+      return new SocketClient ().connect (new UnixSocketAddress (path), null);
+    }
 
+    private NiriIPC () throws Error {
+
+      var conn = get_socket_connection ();
       input_stream = new DataInputStream (conn.input_stream);
-      output_stream = new DataOutputStream (conn.output_stream);
+      var output_stream = new DataOutputStream (conn.output_stream);
 
       // Request event stream
-      send ("\"EventStream\"");
+      output_stream.put_string ("\"EventStream\"\n");
+      output_stream.flush ();
 
       // Init tables
       niri_workspaces = new HashTable<int, NiriWorkspace>(direct_hash, direct_equal);
@@ -75,11 +77,6 @@ namespace Topbar {
 
       // Start async read loop
       read_next_line ();
-    }
-
-    private void send (string line) throws Error {
-      output_stream.put_string (line + "\n");
-      output_stream.flush ();
     }
 
     private void read_next_line () {
@@ -184,20 +181,39 @@ namespace Topbar {
       window_closed (window_id);
     }
 
-    public void focus_workspace (int index) throws Error {
-      var inner = new Json.Object ();
-      inner.set_int_member ("index", index);
+    public void run_action (Json.Object action) {
+      try {
+        var cmd_conn = get_socket_connection ();
+        var cmd_output = new DataOutputStream (cmd_conn.output_stream);
 
-      var obj = new Json.Object ();
-      obj.set_object_member ("FocusWorkspace", inner);
+        var root = new Json.Object ();
+        root.set_object_member ("Action", action);
 
-      var node = new Json.Node (Json.NodeType.OBJECT);
-      node.set_object (obj);
+        var generator = new Json.Generator ();
+        var node = new Json.Node (Json.NodeType.OBJECT);
+        node.set_object (root);
+        generator.set_root (node);
+        generator.pretty = false;
 
-      var gen = new Json.Generator ();
-      gen.set_root (node);
+        cmd_output.put_string (generator.to_data (null) + "\n");
+        cmd_output.flush ();
 
-      send (gen.to_data (null));
+        cmd_conn.close ();
+      } catch (Error e) {
+        warning ("Failed to run action: %s", e.message);
+      }
+    }
+
+    public void focus_workspace (int workspace_id) {
+      var action = new Json.Object ();
+      var focus_workspace = new Json.Object ();
+      var reference = new Json.Object ();
+
+      reference.set_int_member ("Id", workspace_id);
+      focus_workspace.set_object_member ("reference", reference);
+      action.set_object_member ("FocusWorkspace", focus_workspace);
+
+      run_action (action);
     }
   }
 }
