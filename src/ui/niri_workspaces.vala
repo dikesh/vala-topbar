@@ -57,14 +57,16 @@ namespace Topbar {
 
       // Add click gesture
       var gesture = new GestureClick ();
-      gesture.pressed.connect (() => niri.focus_workspace (id));
+      gesture.pressed.connect (() => { if (!is_focused)NiriIPC.focus_workspace (id); });
       add_controller (gesture);
 
       // Add scroller
       var scroll_controller = new EventControllerScroll (EventControllerScrollFlags.VERTICAL);
       scroll_controller.scroll.connect ((controller, delta_x, delta_y) => {
-        if (delta_y < 0)niri.cycle_windows (id, true);
-        else if (delta_y > 0)niri.cycle_windows (id, false);
+        if (!is_focused)NiriIPC.focus_workspace (id);
+
+        if (delta_y < 0)NiriIPC.cycle_windows (id, true);
+        else if (delta_y > 0)NiriIPC.cycle_windows (id, false);
         return true;
       });
       add_controller (scroll_controller);
@@ -170,6 +172,11 @@ namespace Topbar {
           niri.workspaces_changed.disconnect (on_workspaces_changed);
           niri.windows_changed.disconnect (on_windows_changed);
         });
+
+        // Add Long Press gesture
+        var gesture = new GestureLongPress ();
+        gesture.pressed.connect (() => niri.toggle_overview ());
+        add_controller (gesture);
       } catch (Error e) {
         critical ("Failed to init Niri IPC: %s", e.message);
       }

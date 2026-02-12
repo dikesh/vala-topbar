@@ -48,15 +48,13 @@ namespace Topbar {
     public signal void disconnected ();
 
     public static NiriIPC get_default () throws Error {
-      if (instance == null)
-        instance = new NiriIPC ();
+      if (instance == null)instance = new NiriIPC ();
       return instance;
     }
 
-    private SocketConnection get_socket_connection () throws Error {
+    private static SocketConnection get_socket_connection () throws Error {
       string ? path = Environment.get_variable ("NIRI_SOCKET");
-      if (path == null)
-        throw new IOError.NOT_FOUND ("NIRI_SOCKET not set");
+      if (path == null)throw new IOError.NOT_FOUND ("NIRI_SOCKET not set");
 
       return new SocketClient ().connect (new UnixSocketAddress (path), null);
     }
@@ -181,7 +179,7 @@ namespace Topbar {
       window_closed (window_id);
     }
 
-    public void run_action (Json.Object action) {
+    public static void run_action (Json.Object action) {
       try {
         var cmd_conn = get_socket_connection ();
         var cmd_output = new DataOutputStream (cmd_conn.output_stream);
@@ -204,7 +202,7 @@ namespace Topbar {
       }
     }
 
-    public void focus_workspace (int workspace_id) {
+    public static void focus_workspace (int workspace_id) {
       var action = new Json.Object ();
       var focus_workspace = new Json.Object ();
       var reference = new Json.Object ();
@@ -216,13 +214,17 @@ namespace Topbar {
       run_action (action);
     }
 
-    public void cycle_windows (int workspace_id, bool is_up) {
-      var workspace = niri_workspaces.get (workspace_id);
-      if (!workspace.is_focused)focus_workspace (workspace_id);
-
+    public static void cycle_windows (int workspace_id, bool is_up) {
       var action = new Json.Object ();
       var empty_object = new Json.Object ();
       action.set_object_member (is_up ? "FocusColumnLeft" : "FocusColumnRight", empty_object);
+
+      run_action (action);
+    }
+
+    public void toggle_overview () {
+      var action = new Json.Object ();
+      action.set_object_member ("ToggleOverview", new Json.Object ());
 
       run_action (action);
     }
