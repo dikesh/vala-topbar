@@ -41,6 +41,13 @@ namespace Topbar {
       Utils.run_script_async ({ "kitty", "-e", "btop" });
     }
 
+    public static void send_notification (string summary, string body) {
+      // Create and show notification
+      var notification = new Notification (summary);
+      notification.set_body (body);
+      GLib.Application.get_default ().send_notification (null, notification);
+    }
+
     public static async void launch_color_picker () {
       try {
         var subprocess = new Subprocess.newv (
@@ -63,7 +70,7 @@ namespace Topbar {
 
           // Send Notification
           var msg = @"\n<span color='$color'><i><b>$color</b></i></span> copied to clipboard";
-          Utils.run_script_async ({ "notify-send", "Color Picker", msg });
+          send_notification ("Color Picker", msg);
         } else {
           printerr ("Error: %s\n", (string) stderr.get_data ());
         }
