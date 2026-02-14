@@ -21,6 +21,7 @@ executable(
     'services/system_resources.vala',
     'services/screen_rec.vala',
     'services/battery.vala',
+    'services/volume.vala',
   ],
   dependencies: [gtk4, layershell, gio, gio_unix, json, m],
 )

@@ -32,6 +32,7 @@ namespace Topbar {
     }
   }
 
+  // -------------------- Niri IPC ----------------------------
   public class NiriIPC : GLib.Object {
 
     private static NiriIPC ? instance = null;

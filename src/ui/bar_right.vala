@@ -2,7 +2,40 @@ using Gtk;
 
 namespace Topbar {
 
-  public class Battery : Box {
+  private class Volume : Box {
+
+    public class Volume () {
+      Object (spacing: 8);
+      set_css_classes ({ "bar-section", "volume" });
+
+      var volume = VolumeService.get_default ();
+
+      var icon = new Image.from_icon_name (volume.icon_name);
+      var label = new Label (@"$(volume.level)%");
+      append (icon);
+      append (label);
+
+      volume.updated.connect ((level, icon_name) => {
+        icon.icon_name = icon_name;
+        label.label = @"$(level)%";
+      });
+
+      var click_gesture = new GestureClick ();
+      click_gesture.pressed.connect (() => volume.toggle_volume_mute ());
+
+      var scroll_gesture = new EventControllerScroll (EventControllerScrollFlags.VERTICAL);
+      scroll_gesture.scroll.connect ((dx, dy) => {
+        if (dy < 0)volume.update_volume_level (true);
+        else if (dy > 0)volume.update_volume_level (false);
+        return true;
+      });
+
+      add_controller (click_gesture);
+      add_controller (scroll_gesture);
+    }
+  }
+
+  private class Battery : Box {
 
     Image icon;
     Label label;
@@ -32,7 +65,7 @@ namespace Topbar {
     }
   }
 
-  public class PowerMenu : Button {
+  private class PowerMenu : Button {
 
     public PowerMenu () {
       set_css_classes ({ "bar-section", "power" });
@@ -45,6 +78,7 @@ namespace Topbar {
 
     public BarRight () {
       Object (spacing: 8);
+      append (new Volume ());
       append (new Battery ());
       append (new PowerMenu ());
     }

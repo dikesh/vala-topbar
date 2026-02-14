@@ -1,6 +1,6 @@
 namespace Topbar {
 
-  public class ScreenRecordService : GLib.Object {
+  public class ScreenRecordService : Object {
 
     private static ScreenRecordService ? instance = null;
 
