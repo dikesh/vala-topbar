@@ -3,6 +3,7 @@ layershell = dependency('gtk4-layer-shell-0')
 gio = dependency('gio-2.0')
 gio_unix = dependency('gio-unix-2.0')
 json = dependency('json-glib-1.0')
+nm = dependency('libnm')
 m = meson.get_compiler('c').find_library('m')
 
 executable(
@@ -21,7 +22,8 @@ executable(
     'services/system_resources.vala',
     'services/screen_rec.vala',
     'services/battery.vala',
+    'services/network.vala',
     'services/volume.vala',
   ],
-  dependencies: [gtk4, layershell, gio, gio_unix, json, m],
+  dependencies: [gtk4, layershell, gio, gio_unix, json, nm, m],
 )

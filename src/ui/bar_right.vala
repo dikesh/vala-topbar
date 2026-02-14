@@ -35,6 +35,29 @@ namespace Topbar {
     }
   }
 
+  private class Wifi : Box {
+    Image icon;
+    Label label;
+
+    public Wifi () {
+      Object (spacing: 8);
+      set_css_classes ({ "bar-section", "network" });
+
+      var wifi = WifiService.get_default ();
+
+      icon = new Image.from_icon_name (wifi.icon_name);
+      label = new Label (wifi.ssid);
+
+      append (icon);
+      append (label);
+
+      wifi.updated.connect (() => {
+        icon.icon_name = wifi.icon_name;
+        label.label = wifi.ssid;
+      });
+    }
+  }
+
   private class Battery : Box {
 
     Image icon;
@@ -79,6 +102,7 @@ namespace Topbar {
     public BarRight () {
       Object (spacing: 8);
       append (new Volume ());
+      append (new Wifi ());
       append (new Battery ());
       append (new PowerMenu ());
     }
