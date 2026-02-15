@@ -1,6 +1,41 @@
 using Gtk;
+using Gdk;
 
 namespace Topbar {
+
+  private class Bluetooth : Box {
+
+    Image icon;
+    Label label;
+
+    public class Bluetooth () {
+      Object (spacing: 8);
+      set_css_classes ({ "bar-section", "bluetooth" });
+
+      icon = new Image.from_icon_name ("bluetooth-active-symbolic");
+      label = new Label ("");
+
+      append (icon);
+      append (label);
+
+      var bt = BluetoothService.get_default ();
+      bt.updated.connect (() => {
+        icon.icon_name = bt.icon_name;
+        label.label = bt.device_name;
+        label.visible = bt.powered;
+        spacing = bt.device_name == "" ? 0 : 8;
+      });
+
+      var left_click = new GestureClick ();
+      left_click.pressed.connect (() => Utils.launch_bluetooth_menu ());
+      add_controller (left_click);
+
+      var right_click = new GestureClick ();
+      right_click.set_button (BUTTON_SECONDARY);
+      right_click.pressed.connect (() => bt.toggle_power ());
+      add_controller (right_click);
+    }
+  }
 
   private class Volume : Box {
 
@@ -101,6 +136,7 @@ namespace Topbar {
 
     public BarRight () {
       Object (spacing: 8);
+      append (new Bluetooth ());
       append (new Volume ());
       append (new Wifi ());
       append (new Battery ());

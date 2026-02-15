@@ -20,7 +20,7 @@ namespace  Topbar {
         handle_change ();
 
         var proc = new Subprocess.newv (
-          { "pw-mon", "-Noap" },
+          { "pw-dump", "--monitor" },
           SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_SILENCE
         );
 
@@ -38,17 +38,18 @@ namespace  Topbar {
         while (true) {
           line = yield stream.read_line_async ();
 
-          if (line != null && line.strip () == "changed:")handle_change ();
+          if (line == null)return;
+
+          if ("Audio/Device" in line || "PipeWire:Interface:Metadata" in line)handle_change ();
         }
       } catch (Error e) {
-        warning ("Subscribe error: %s", e.message);
+        warning ("Read line error: %s", e.message);
       }
     }
 
     private void handle_change () {
       try {
-        string output;
-        Process.spawn_command_line_sync ("wpctl get-volume @DEFAULT_AUDIO_SINK@", out output);
+        var output = Utils.run_script_sync ({ "wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@" });
         level = (int) (100 * float.parse (output.strip ().split (" ")[1]));
 
         if ("MUTED" in output)icon_name = "audio-volume-muted";
@@ -57,8 +58,8 @@ namespace  Topbar {
         else icon_name = "audio-volume-low-symbolic";
 
         updated (level, icon_name);
-      } catch (SpawnError e) {
-        warning ("Spawn error: %s", e.message);
+      } catch (Error e) {
+        warning ("Error: %s", e.message);
       }
     }
 

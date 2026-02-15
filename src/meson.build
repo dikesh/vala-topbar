@@ -24,6 +24,7 @@ executable(
     'services/battery.vala',
     'services/network.vala',
     'services/volume.vala',
+    'services/bluetooth.vala',
   ],
   dependencies: [gtk4, layershell, gio, gio_unix, json, nm, m],
 )

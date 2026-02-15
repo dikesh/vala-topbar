@@ -7,6 +7,7 @@ namespace Topbar {
 
     private const string apps_relative_path = ".config/rofi/launchers/type-3/launcher.sh";
     private const string power_menu_relative_path = ".config/rofi/powermenu/type-5/powermenu.sh";
+    private const string bluetooth_menu_path = "./scripts/bluetooth.sh";
     private static IconTheme icon_theme;
 
     public static string get_full_path (string relative_path) {
@@ -21,9 +22,32 @@ namespace Topbar {
       return icon_theme.has_icon (icon_name);
     }
 
+    public static string run_script_sync (string[] argv) throws Error {
+      var subprocess = new Subprocess.newv (
+        argv,
+        SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
+      );
+
+      Bytes stdout_bytes;
+      Bytes stderr_bytes;
+      subprocess.communicate (null, null, out stdout_bytes, out stderr_bytes);
+
+      if (!subprocess.get_successful ()) {
+        throw new Error (
+                Quark.from_string ("command-error"),
+                subprocess.get_exit_status (),
+                "Command failed: %s",
+                (string) stderr_bytes.get_data ()
+        );
+      }
+
+      return ((string) stdout_bytes.get_data ()).strip ();
+    }
+
     public static void run_script_async (string[] argv) {
       try {
-        new Subprocess.newv (argv, SubprocessFlags.STDERR_SILENCE);
+        new Subprocess.newv (argv,
+                             SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE);
       } catch (Error e) {
         warning ("Failed to run script: %s", e.message);
       }
@@ -31,6 +55,10 @@ namespace Topbar {
 
     public static void launch_apps () {
       Utils.run_script_async ({ Utils.get_full_path (apps_relative_path) });
+    }
+
+    public static void launch_bluetooth_menu () {
+      Utils.run_script_async ({ bluetooth_menu_path });
     }
 
     public static void launch_power_menu () {
