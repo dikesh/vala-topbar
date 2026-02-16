@@ -8,11 +8,24 @@ namespace Topbar {
       Object (application: app, title: "Topbar");
       set_css_classes ({ "bar-container" });
 
-      var provider = new CssProvider ();
-      provider.load_from_path ("./assets/style.css");
-      Gtk.StyleContext.add_provider_for_display (Gdk.Display.get_default (),
-                                                 provider,
-                                                 STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+      // In your activation or setup code:
+      try {
+        // Load CSS
+        var provider = new CssProvider ();
+        provider.load_from_path (Utils.get_asset_path ("assets/style.css"));
+        Gtk.StyleContext.add_provider_for_display (
+          Gdk.Display.get_default (),
+          provider,
+          Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        );
+
+        // Add icon search path
+        var icon_theme = IconTheme.get_for_display (Gdk.Display.get_default ());
+        icon_theme.add_search_path (Utils.get_asset_path ("assets"));
+      } catch (Error e) {
+        stderr.printf ("Error loading assets: %s\n", e.message);
+      }
 
       // Layer shell settings
       GtkLayerShell.init_for_window (this);

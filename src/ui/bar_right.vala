@@ -140,6 +140,7 @@ namespace Topbar {
       append (new Volume ());
       append (new Wifi ());
       append (new Battery ());
+      append (new SystemTray ());
       append (new PowerMenu ());
     }
   }

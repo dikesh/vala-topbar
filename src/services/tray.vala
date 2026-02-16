@@ -1,0 +1,986 @@
+namespace Topbar {
+
+  // ------------------------- Pixmap -------------------------
+  public struct Pixmap {
+    int width;
+    int height;
+    uint8[] bytes;
+
+    internal static Pixmap from_variant (GLib.Variant variant) {
+      Pixmap pixmap = Pixmap ();
+
+      int width, height;
+      Variant data;
+
+      variant.get ("(ii@ay)", out width, out height, out data);
+      pixmap.width = width;
+      pixmap.height = height;
+      pixmap.bytes = data.get_data_as_bytes ().get_data ();
+
+      return pixmap;
+    }
+
+    internal static Pixmap[] array_from_variant (GLib.Variant variant) {
+      Pixmap[] icons = new Pixmap[0];
+
+      GLib.VariantIter iter = variant.iterator ();
+
+      GLib.Variant child;
+      while ((child = iter.next_value ()) != null) {
+        Pixmap pm = Pixmap.from_variant (child);
+        icons += pm;
+      }
+      return icons;
+    }
+  }
+
+  // ------------------------- Tooltip -------------------------
+  public struct Tooltip {
+    string icon_name;
+    Pixmap[] icon;
+    string title;
+    string description;
+
+    internal static Tooltip from_variant (GLib.Variant variant) {
+      Tooltip tooltip = Tooltip ();
+
+      string icon_name;
+      GLib.VariantIter iter;
+      string title;
+      string description;
+
+      variant.get ("(sa(iiay)ss)", out icon_name, out iter, out title, out description);
+      tooltip.icon_name = icon_name;
+      tooltip.title = title;
+      tooltip.description = description;
+
+      GLib.Variant child;
+
+      Pixmap[] icons = new Pixmap[0];
+
+      while ((child = iter.next_value ()) != null) {
+        Pixmap pm = Pixmap.from_variant (child);
+        icons += pm;
+      }
+
+      tooltip.icon = icons;
+
+      return tooltip;
+    }
+  }
+
+  [DBus (use_string_marshalling = true)]
+  public enum Category {
+    [DBus (value = "ApplicationStatus"), Description (nick = "ApplicationStatus")]
+    APPLICATION,
+
+    [DBus (value = "Communications"), Description (nick = "Communications")]
+    COMMUNICATIONS,
+
+    [DBus (value = "SystemServices"), Description (nick = "SystemServices")]
+    SYSTEM,
+
+    [DBus (value = "Hardware"), Description (nick = "Hardware")]
+    HARDWARE;
+
+    public string to_nick () {
+      var enumc = (EnumClass) typeof (Category).class_ref ();
+      unowned var eval = enumc.get_value (this);
+      return eval.value_nick;
+    }
+
+    public static extern Category from_string (string value) throws Error;
+  }
+
+  [DBus (use_string_marshalling = true)]
+  public enum Status {
+    [DBus (value = "Passive"), Description (nick = "Passive")]
+    PASSIVE,
+
+    [DBus (value = "Active"), Description (nick = "Active")]
+    ACTIVE,
+
+    [DBus (value = "NeedsAttention"), Description (nick = "NeedsAttention")]
+    NEEDS_ATTENTION;
+
+    public string to_nick () {
+      var enumc = (EnumClass) typeof (Status).class_ref ();
+      unowned var eval = enumc.get_value (this);
+      return eval.value_nick;
+    }
+
+    public static extern Status from_string (string value) throws Error;
+  }
+
+  [DBus (name = "org.kde.StatusNotifierItem")]
+  internal interface IItem : DBusProxy {
+    public abstract void ContexMenu (int x, int y) throws DBusError, IOError;
+    public abstract void Activate (int x, int y) throws DBusError, IOError;
+    public abstract void SecondaryActivate (int x, int y) throws DBusError, IOError;
+    public abstract void Scroll (int delta, string orientation) throws DBusError, IOError;
+
+    public signal void NewTitle ();
+    public signal void NewIcon ();
+    public signal void NewAttentionIcon ();
+    public signal void NewOverlayIcon ();
+    public signal void NewToolTip ();
+    public signal void NewStatus (string status);
+  }
+
+  // ------------------------- TrayItem -------------------------
+  public class TrayItem : Object {
+    private IItem proxy;
+    private bool needs_update = false;
+
+    /** The Title of the TrayItem */
+    public string title { get; private set; }
+
+    /** The category this item belongs to */
+    public Category category { get; private set; }
+
+    /** The current status of this item */
+    public Status status { get; private set; }
+
+    /** The tooltip of this item */
+    public Tooltip ? tooltip { get; private set; }
+
+    /**
+     * Show the context menu for this tray item.
+     */
+    public void show_context_menu (int x, int y) {
+      if (menu_path == null)return;
+
+      try {
+        // First try the StatusNotifierItem ContextMenu method
+        proxy.ContexMenu (x, y);
+      } catch (Error e) {
+        // If that fails, try opening the menu at root (id=0)
+        try {
+          Bus.get_sync (BusType.SESSION).call_sync (
+            proxy.g_name_owner,
+            menu_path,
+            "com.canonical.dbusmenu",
+            "Event",
+            new Variant ("(isvu)", 0, "opened", new Variant ("i", 0), 0u),
+            null,
+            DBusCallFlags.NONE,
+            -1,
+            null
+          );
+        } catch (Error e2) {
+          warning ("Failed to show context menu: %s", e2.message);
+        }
+      }
+    }
+
+    /**
+     * A markup representation of the tooltip. This is basically equvivalent
+     * to `tooltip.title \n tooltip.description`
+     */
+    public string tooltip_markup {
+      owned get {
+        if (tooltip == null)return "";
+
+        var tt = GLib.Markup.escape_text (tooltip.title);
+        if (tooltip.description != "")tt += "\n" + tooltip.description;
+
+        return tt;
+      }
+    }
+
+    /**
+     * A text representation of the tooltip. This is basically equvivalent
+     * to `tooltip.title \n tooltip.description.`
+     */
+    public string tooltip_text {
+      owned get {
+        if (tooltip == null)return "";
+
+        var tt = tooltip.title;
+        if (tooltip.description != "")tt += "\n" + tooltip.description;
+
+        return tt;
+      }
+    }
+
+    /** the id of the item. This id is specified by the tray app.*/
+    public string id { get; private set; }
+
+    /**
+     * If set, this only supports the menu, so showing the menu should be prefered
+     * over calling [method@TrayService.TrayItem.activate].
+     */
+    public bool is_menu { get; private set; default = true; }
+
+    /**
+     * The icon theme path, where to look for the [property@TrayService.TrayItem:icon-name].
+     * It is recommended to use the [property@TrayService.TrayItem:gicon] property,
+     * which does the icon lookups for you.
+     */
+    public string icon_theme_path { get; private set; }
+
+    // icon properties from the dbus for internal use only
+    private string IconName;
+    private Pixmap[] IconPixmap;
+    private string AttentionIconName;
+    private Pixmap[] AttentionIconPixmap;
+    private string OverlayIconName;
+    private Pixmap[] OverlayIconPixmap;
+
+    /**
+     * The name of the icon. This should be looked up in the [property@TrayService.TrayItem:icon-theme-path]
+     * if set or in the currently used icon theme otherwise.
+     * It is recommended to use the [property@TrayService.TrayItem:gicon] property,
+     * which does the icon lookups for you.
+     */
+    public string icon_name {
+      owned get {
+        return status == Status.NEEDS_ATTENTION
+                ? AttentionIconName
+                : IconName;
+      }
+    }
+
+    /**
+     * A pixbuf containing the icon.
+     * It is recommended to use the [property@TrayService.TrayItem:gicon] property,
+     * which does the icon lookups for you.
+     */
+    public Gdk.Pixbuf icon_pixbuf { owned get {
+                                      return _get_icon_pixbuf ();
+                                    } }
+
+    /**
+     * Contains the items icon. This property is intended to be used with the gicon property
+     * of the Icon widget and the recommended way to display the icon.
+     * This property unifies the [property@TrayService.TrayItem:icon-name],
+     * [property@TrayService.TrayItem:icon-theme-path] and [property@TrayService.TrayItem:icon-pixbuf] properties.
+     */
+    public GLib.Icon gicon { get; private set; }
+
+    /** The id of the item used to uniquely identify the TrayItems by this lib.*/
+    public string item_id { get; private set; }
+
+    /** The object path to the dbusmenu */
+    public ObjectPath menu_path { get; private set; }
+
+    private DBusMenuModel ? dbus_menu_model;
+    private SimpleActionGroup ? dbus_action_group;
+
+    /**
+     * The MenuModel describing the menu for this TrayItem to be used with a MenuButton or PopoverMenu.
+     * The actions for this menu are defined in [property@TrayService.TrayItem:action-group].
+     */
+    public MenuModel ? menu_model {
+      owned get {
+        return dbus_menu_model;
+      }
+    }
+
+    /**
+     * The ActionGroup containing the actions for the menu. All actions have the `dbusmenu` prefix and are
+     * setup to work with the [property@TrayService.TrayItem:menu-model]. Make sure to insert this action group
+     * into a parent widget of the menu, eg the MenuButton for which the MenuModel for this TrayItem is set.
+     */
+    public ActionGroup ? action_group {
+      owned get {
+        return dbus_action_group;
+      }
+    }
+
+    public signal void changed ();
+    public signal void ready ();
+
+    internal TrayItem (string service, string path) {
+      item_id = service + path;
+      setup_proxy.begin (service, path, (_, res) => setup_proxy.end (res));
+    }
+
+    private async void setup_proxy (string service, string path) {
+      try {
+        proxy = yield Bus.get_proxy (BusType.SESSION,
+                                     service,
+                                     path);
+
+        proxy.g_signal.connect (handle_signal);
+
+        yield refresh_all_properties ();
+
+        ready ();
+      } catch (Error err) {
+        critical (err.message);
+      }
+    }
+
+    private void update_gicon () {
+      if ((icon_name != null) && (icon_name != "")) {
+        if (GLib.FileUtils.test (icon_name, GLib.FileTest.EXISTS)) {
+          gicon = new GLib.FileIcon (GLib.File.new_for_path (icon_name));
+        } else if ((icon_theme_path != null) && (icon_theme_path != "")) {
+          string path = find_icon_in_theme (icon_name, icon_theme_path);
+          if (path != null) {
+            gicon = new GLib.FileIcon (GLib.File.new_for_path (path));
+          } else {
+            gicon = new GLib.ThemedIcon (icon_name);
+          }
+        } else {
+          gicon = new GLib.ThemedIcon (icon_name);
+        }
+      } else {
+        Pixmap[] pixmaps = (status == Status.NEEDS_ATTENTION)
+                ? AttentionIconPixmap
+                : IconPixmap;
+        gicon = pixmap_to_pixbuf (pixmaps);
+      }
+    }
+
+    private void handle_signal (DBusProxy proxy, string ? sender_name, string signal_name,
+                                Variant parameters) {
+      if (needs_update)return;
+      needs_update = true;
+      GLib.Timeout.add_once (10, () => {
+        needs_update = false;
+        refresh_all_properties.begin ();
+      });
+    }
+
+    private void set_dbus_property (string prop_name, Variant prop_value) {
+      try {
+        switch (prop_name) {
+          case "Category" : {
+              var new_category = Category.from_string (prop_value.get_string ());
+              if (category != new_category) {
+                category = new_category;
+              }
+              break;
+          }
+          case "Id" : {
+              var new_id = prop_value.get_string ();
+              if (id != new_id) {
+                id = new_id;
+              }
+              break;
+          }
+          case "Title" : {
+              var new_title = prop_value.get_string ();
+              if (title != new_title) {
+                title = new_title;
+              }
+              break;
+          }
+          case "Status" : {
+              var new_status = Status.from_string (prop_value.get_string ());
+              if (status != new_status) {
+                status = new_status;
+                update_gicon ();
+              }
+              break;
+          }
+          case "ToolTip" : {
+              tooltip = Tooltip.from_variant (prop_value);
+              break;
+          }
+          case "IconThemePath": {
+            var new_path = prop_value.get_string ();
+            if (icon_theme_path != new_path) {
+              icon_theme_path = new_path;
+              update_gicon ();
+            }
+            break;
+          }
+          case "ItemIsMenu": {
+            var new_is_menu = prop_value.get_boolean ();
+            if (is_menu != new_is_menu) {
+              is_menu = new_is_menu;
+            }
+            break;
+          }
+          case "Menu": {
+            if (!prop_value.is_of_type (VariantType.OBJECT_PATH))break;
+
+            var new_menu_path = (ObjectPath) prop_value.get_string ();
+            if (new_menu_path != menu_path) {
+              menu_path = new_menu_path;
+
+              if (menu_path != null && menu_path != "/") {
+                try {
+                  var connection = Bus.get_sync (BusType.SESSION);
+                  dbus_menu_model = DBusMenuModel.@get (
+                    connection,
+                    proxy.g_name_owner,
+                    menu_path
+                  );
+                } catch (Error e) {
+                  warning ("Failed to get menu model: %s", e.message);
+                }
+
+                dbus_action_group = new SimpleActionGroup ();
+
+                notify_property ("menu-model");
+                notify_property ("action-group");
+              } else {
+                dbus_menu_model = null;
+                dbus_action_group = null;
+                notify_property ("menu-model");
+                notify_property ("action-group");
+              }
+            }
+            break;
+          }
+          case "IconName": {
+            var new_icon_name = prop_value.get_string ();
+            if (IconName != new_icon_name) {
+              IconName = new_icon_name;
+              notify_property ("icon-name");
+              update_gicon ();
+            }
+            break;
+          }
+          case "IconPixmap": {
+            IconPixmap = Pixmap.array_from_variant (prop_value);
+            update_gicon ();
+            notify_property ("icon-pixbuf");
+            break;
+          }
+          case "AttentionIconName": {
+            var new_attention_icon_name = prop_value.get_string ();
+            if (AttentionIconName != new_attention_icon_name) {
+              AttentionIconName = new_attention_icon_name;
+              update_gicon ();
+              notify_property ("icon-name");
+            }
+            break;
+          }
+          case "AttentionIconPixmap": {
+            AttentionIconPixmap = Pixmap.array_from_variant (prop_value);
+            update_gicon ();
+            notify_property ("icon-pixbuf");
+            break;
+          }
+          case "OverlayIconName": {
+            var new_overlay_icon_name = prop_value.get_string ();
+            if (OverlayIconName != new_overlay_icon_name) {
+              OverlayIconName = new_overlay_icon_name;
+              update_gicon ();
+              notify_property ("icon-name");
+            }
+            break;
+          }
+          case "OverlayIconPixmap": {
+            OverlayIconPixmap = Pixmap.array_from_variant (prop_value);
+            update_gicon ();
+            notify_property ("icon-pixbuf");
+            break;
+          }
+        }
+      } catch (Error e) {
+        // silently ignore
+      }
+    }
+
+    private async void refresh_all_properties () {
+      this.freeze_notify ();
+      try {
+        Variant parameters = yield proxy.g_connection.call (proxy.g_name,
+                                                            proxy.g_object_path,
+                                                            "org.freedesktop.DBus.Properties",
+                                                            "GetAll",
+                                                            new Variant("(s)",
+                                                                        proxy.g_interface_name),
+                                                            new VariantType("(a{sv})"),
+                                                            DBusCallFlags.NONE,
+                                                            -1,
+                                                            null);
+
+        VariantIter prop_iter;
+        parameters.get ("(a{sv})", out prop_iter);
+
+        string prop_key;
+        Variant prop_value;
+
+        while (prop_iter.next ("{sv}", out prop_key, out prop_value)) {
+          set_dbus_property (prop_key, prop_value);
+        }
+      } catch (Error e) {
+        // silently ignode
+      }
+      this.thaw_notify ();
+      this.changed ();
+    }
+
+    /**
+     * tells the tray app that its menu is about to be opened,
+     * so it can update the menu if needed. You should call this method
+     * before openening the menu.
+     */
+    public void about_to_show () {
+      if (menu_path == null)return;
+      try {
+        Bus.get_sync (BusType.SESSION).call_sync (
+          this.proxy.g_name_owner,
+          menu_path,
+          "com.canonical.dbusmenu",
+          "AboutToShow",
+          new Variant ("(i)", 0),
+          null,
+          DBusCallFlags.NONE,
+          -1,
+          null
+        );
+      } catch (Error r) {
+        // silently ignore
+      }
+    }
+
+    /**
+     * Send an activate request to the tray app.
+     */
+    public void activate (int x, int y) {
+      try {
+        proxy.Activate (x, y);
+      } catch (Error e) {
+        if ((e.domain != DBusError.quark ()) || (e.code != DBusError.UNKNOWN_METHOD)) {
+          warning (e.message);
+        }
+      }
+    }
+
+    /**
+     * Send a secondary activate request to the tray app.
+     */
+    public void secondary_activate (int x, int y) {
+      try {
+        proxy.SecondaryActivate (x, y);
+      } catch (Error e) {
+        if ((e.domain != DBusError.quark ()) || (e.code != DBusError.UNKNOWN_METHOD)) {
+          warning (e.message);
+        }
+      }
+    }
+
+    /**
+     * Send a scroll request to the tray app.
+     * valid values for the orientation are "horizontal" and "vertical".
+     */
+    public void scroll (int delta, string orientation) {
+      try {
+        proxy.Scroll (delta, orientation);
+      } catch (Error e) {
+        if ((e.domain != DBusError.quark ()) || (e.code != DBusError.UNKNOWN_METHOD)) {
+          warning ("%s\n", e.message);
+        }
+      }
+    }
+
+    private string ? find_icon_in_theme (string icon_name, string theme_path) {
+      if ((icon_name == null) || (theme_path == null) || (icon_name == "") || (theme_path == "")) {
+        return null;
+      }
+
+      try {
+        Dir dir = Dir.open (theme_path, 0);
+        string ? name = null;
+
+        while ((name = dir.read_name ()) != null) {
+          var path = Path.build_filename (theme_path, name);
+
+          if (FileUtils.test (path, FileTest.IS_DIR)) {
+            string ? icon = find_icon_in_theme (icon_name, path);
+            if (icon != null) {
+              return icon;
+            } else {
+              continue;
+            }
+          }
+
+          int dot_index = name.last_index_of (".");
+          if (dot_index != -1) {
+            name = name.substring (0, dot_index);
+          }
+
+          if (name == icon_name)return path;
+        }
+      } catch (FileError err) {
+        return null;
+      }
+      return null;
+    }
+
+    private Gdk.Pixbuf ? _get_icon_pixbuf () {
+      Pixmap[] pixmaps = (status == Status.NEEDS_ATTENTION)
+            ? AttentionIconPixmap
+            : IconPixmap;
+
+      return pixmap_to_pixbuf (pixmaps);
+    }
+
+    private Gdk.Pixbuf ? pixmap_to_pixbuf (Pixmap[] pixmaps) {
+      if ((pixmaps == null) || (pixmaps.length <= 0))return null;
+
+      Pixmap pixmap = pixmaps[0];
+
+      for (int i = 0; i < pixmaps.length; i++) {
+        if (pixmap.width < pixmaps[i].width)pixmap = pixmaps[i];
+      }
+
+      uint8[] image_data = pixmap.bytes.copy ();
+
+      for (int i = 0; i < pixmap.width * pixmap.height * 4; i += 4) {
+        uint8 alpha = image_data[i];
+        image_data[i] = image_data[i + 1];
+        image_data[i + 1] = image_data[i + 2];
+        image_data[i + 2] = image_data[i + 3];
+        image_data[i + 3] = alpha;
+      }
+
+      return new Gdk.Pixbuf.from_bytes (
+        new Bytes (image_data),
+        Gdk.Colorspace.RGB,
+        true,
+        8,
+        (int) pixmap.width,
+        (int) pixmap.height,
+        (int) (pixmap.width * 4)
+      );
+    }
+
+    public string to_json_string () {
+      var generator = new Json.Generator ();
+      generator.set_root (to_json ());
+      return generator.to_data (null);
+    }
+
+    internal Json.Node to_json () {
+      return new Json.Builder ()
+              .begin_object ()
+              .set_member_name ("item_id").add_string_value (item_id)
+              .set_member_name ("id").add_string_value (id)
+              .set_member_name ("bus_name").add_string_value (proxy.g_name)
+              .set_member_name ("object_path").add_string_value (proxy.g_object_path)
+              .set_member_name ("title").add_string_value (title)
+              .set_member_name ("status").add_string_value (status.to_nick ())
+              .set_member_name ("category").add_string_value (category.to_nick ())
+              .set_member_name ("tooltip").add_string_value (tooltip_markup)
+              .set_member_name ("icon_theme_path").add_string_value (icon_theme_path)
+              .set_member_name ("icon_name").add_string_value (icon_name)
+              .set_member_name ("menu_path").add_string_value (menu_path)
+              .set_member_name ("is_menu").add_boolean_value (is_menu)
+              .end_object ()
+              .get_root ();
+    }
+  }
+
+  [DBus (name = "org.kde.StatusNotifierWatcher")]
+  internal class StatusNotifierWatcher : Object {
+    private HashTable<string, string> _items =
+      new HashTable<string, string>(str_hash, str_equal);
+    private uint noc_signal_id;
+    private DBusConnection bus;
+
+    public string[] RegisteredStatusNotifierItems { owned get {
+                                                      return _items.get_values_as_ptr_array ().data;
+                                                    } }
+    public bool IsStatusNotifierHostRegistered { get; default = true; }
+    public int ProtocolVersion { get; default = 0; }
+
+    public signal void StatusNotifierItemRegistered (string service);
+    public signal void StatusNotifierItemUnregistered (string service);
+    public signal void StatusNotifierHostRegistered ();
+    public signal void StatusNotifierHostUnregistered ();
+
+    construct {
+      try {
+        bus = Bus.get_sync (BusType.SESSION);
+        noc_signal_id = bus.signal_subscribe (
+          null,
+          "org.freedesktop.DBus",
+          "NameOwnerChanged",
+          null,
+          null,
+          DBusSignalFlags.NONE,
+          (connection, sender_name, path, interface_name, signal_name, parameters) => {
+          string name = null;
+          string new_owner = null;
+          string old_owner = null;
+          parameters.get ("(sss)", &name, &old_owner, &new_owner);
+          if ((new_owner == "") && _items.contains (name)) {
+            string full_path = _items.take (name);
+            StatusNotifierItemUnregistered (full_path);
+          }
+        });
+      } catch (IOError e) {
+        critical (e.message);
+      }
+    }
+
+    public void RegisterStatusNotifierItem (string service, BusName sender) throws DBusError,
+    IOError {
+      string busName;
+      string path;
+      if (service[0] == '/') {
+        path = service;
+        busName = sender;
+      } else {
+        busName = service;
+        path = "/StatusNotifierItem";
+      }
+
+      _items.set (busName, busName + path);
+      StatusNotifierItemRegistered (busName + path);
+    }
+
+    public void RegisterStatusNotifierHost (string service) throws DBusError, IOError {
+      /* NOTE:
+          usually the watcher should keep track of registered host
+          but some tray applications do not register their trayitem properly
+          when hosts register/deregister. This is fixed by setting isHostRegistered
+          always to true, this also makes host handling logic unneccessary.
+       */
+    }
+
+    ~StatusNotifierWatcher () {
+      bus.signal_unsubscribe (noc_signal_id);
+    }
+  }
+
+  [DBus (name = "org.kde.StatusNotifierWatcher")]
+  internal interface IWatcher : Object {
+    public abstract string[] RegisteredStatusNotifierItems { owned get; }
+    public abstract int ProtocolVersion { get; }
+
+    public abstract void RegisterStatusNotifierItem (string service,
+                                                     BusName sender) throws DBusError, IOError;
+    public abstract void RegisterStatusNotifierHost (string service) throws DBusError, IOError;
+
+    public signal void StatusNotifierItemRegistered (string service);
+    public signal void StatusNotifierItemUnregistered (string service);
+    public signal void StatusNotifierHostRegistered ();
+    public signal void StatusNotifierHostUnregistered ();
+  }
+
+  // ------------------------- Tray -------------------------
+  public class TrayService : Object {
+    private static TrayService ? instance = null;
+
+    public static TrayService get_default () {
+      if (instance == null)instance = new TrayService ();
+      return instance;
+    }
+
+    private StatusNotifierWatcher watcher;
+    private IWatcher proxy;
+
+    private HashTable<string, TrayItem> _items =
+      new HashTable<string, TrayItem>(str_hash, str_equal);
+
+    /**
+     * List of currently registered tray items
+     */
+    public List<weak TrayItem> items { owned get {
+                                         return _items.get_values ();
+                                       } }
+
+    private ListStore _items_store;
+
+    /**
+     * ListModel containing the currently registered tray items.
+     */
+    public ListModel items_model { get {
+                                     return this._items_store;
+                                   } }
+
+    /**
+     * emitted when a new tray item was added.
+     */
+    public signal void item_added (string item_id) {
+      notify_property ("items");
+    }
+
+    /**
+     * emitted when a tray item was removed.
+     */
+    public signal void item_removed (string item_id) {
+      notify_property ("items");
+    }
+
+    construct {
+      this._items_store = new ListStore (typeof (TrayItem));
+
+      // Watch for new services appearing on the bus
+      try {
+        var conn = Bus.get_sync (BusType.SESSION);
+        conn.signal_subscribe (
+          "org.freedesktop.DBus",
+          "org.freedesktop.DBus",
+          "NameOwnerChanged",
+          "/org/freedesktop/DBus",
+          null,
+          DBusSignalFlags.NONE,
+          on_name_owner_changed
+        );
+      } catch (Error e) {
+        warning ("Failed to subscribe to NameOwnerChanged: %s", e.message);
+      }
+
+      try {
+        Bus.own_name (
+          BusType.SESSION,
+          "org.kde.StatusNotifierWatcher",
+          BusNameOwnerFlags.NONE,
+          start_watcher,
+          start_host,
+          () => {
+          if (proxy != null) {
+            proxy = null;
+          }
+        });
+      } catch (Error err) {
+        critical (err.message);
+      }
+    }
+
+    private void start_watcher (DBusConnection conn) {
+      try {
+        watcher = new StatusNotifierWatcher ();
+        conn.register_object ("/StatusNotifierWatcher", watcher);
+        watcher.StatusNotifierItemRegistered.connect (on_item_register);
+        watcher.StatusNotifierItemUnregistered.connect (on_item_unregister);
+      } catch (Error err) {
+        critical (err.message);
+      }
+    }
+
+    private void start_host () {
+      if (proxy != null)return;
+
+      load_proxy.begin ((obj, res) => {
+        load_proxy.end (res);
+      });
+    }
+
+    private async void load_proxy () {
+      try {
+        proxy = yield Bus.get_proxy (BusType.SESSION,
+                                     "org.kde.StatusNotifierWatcher",
+                                     "/StatusNotifierWatcher");
+
+        proxy.StatusNotifierItemRegistered.connect (on_item_register);
+        proxy.StatusNotifierItemUnregistered.connect (on_item_unregister);
+
+        proxy.notify["g-name-owner"].connect (() => {
+          _items.foreach ((service, _) => {
+            item_removed (service);
+          });
+
+          _items.remove_all ();
+          _items_store.remove_all ();
+
+          if (proxy != null) {
+            foreach (string item in proxy.RegisteredStatusNotifierItems) {
+              on_item_register (item);
+            }
+          } else {
+            foreach (string item in watcher.RegisteredStatusNotifierItems) {
+              on_item_register (item);
+            }
+          }
+        });
+
+        foreach (string item in proxy.RegisteredStatusNotifierItems) {
+          on_item_register (item);
+        }
+      } catch (Error err) {
+        critical ("cannot get proxy: %s", err.message);
+      }
+    }
+
+    private void on_name_owner_changed (DBusConnection connection,
+                                        string ? sender_name,
+                                        string object_path,
+                                        string interface_name,
+                                        string signal_name,
+                                        Variant parameters) {
+      string name, old_owner, new_owner;
+      parameters.get ("(sss)", out name, out old_owner, out new_owner);
+
+      // If a service just appeared (new owner, no old owner)
+      if (new_owner != "" && old_owner == "") {
+        // Give it time to initialize
+        GLib.Timeout.add (1000, () => {
+          check_and_notify_service.begin (connection, name, new_owner);
+          return false;
+        });
+      }
+    }
+
+    private async void check_and_notify_service (DBusConnection conn, string name, string owner) {
+      // Check if this service has StatusNotifierItem
+      string[] paths = { "/StatusNotifierItem", "/org/ayatana/NotificationItem" };
+
+      foreach (string path in paths) {
+        try {
+          yield conn.call (owner,
+                           path,
+                           "org.freedesktop.DBus.Properties",
+                           "Get",
+                           new Variant("(ss)", "org.kde.StatusNotifierItem", "Id"),
+                           new VariantType("(v)"),
+                           DBusCallFlags.NONE,
+                           500,
+                           null);
+
+          // If we get here, the interface exists!
+          // Send StatusNotifierHostRegistered signal to trigger re-registration
+          conn.emit_signal (
+            null,
+            "/StatusNotifierWatcher",
+            "org.kde.StatusNotifierWatcher",
+            "StatusNotifierHostRegistered",
+            null
+          );
+
+          return;
+        } catch (Error e) {
+          continue;
+        }
+      }
+    }
+
+    private void on_item_register (string service) {
+      if (_items.contains (service))return;
+
+      var parts = service.split ("/", 2);
+      TrayItem item = new TrayItem (parts[0], "/" + parts[1]);
+
+      // Add to items immediately to prevent duplicate registration
+      _items.set (service, item);
+
+      item.ready.connect (() => {
+        _items_store.append (item);
+        item_added (service);
+      });
+    }
+
+    private void on_item_unregister (string service) {
+      var item = _items.get (service);
+      if (item == null)return;
+
+      _items.remove (service);
+
+      // Only try to remove from store if item exists in it
+      uint pos;
+      if (_items_store.find (item, out pos)) {
+        _items_store.remove (pos);
+      }
+
+      item_removed (service);
+    }
+
+    /**
+     * gets the TrayItem with the given item-id.
+     */
+    public TrayItem get_item (string item_id) {
+      return _items.get (item_id);
+    }
+  }
+}

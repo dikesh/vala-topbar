@@ -14,11 +14,18 @@ namespace Topbar {
       return Path.build_filename (Environment.get_home_dir (), relative_path);
     }
 
+    private static string get_exe_dir () throws FileError {
+      string exe_path = FileUtils.read_link ("/proc/self/exe");
+      return Path.get_dirname (exe_path);
+    }
+
+    public static string get_asset_path (string relative_path) throws FileError {
+      return Path.build_filename (get_exe_dir (), relative_path);
+    }
+
     public static bool icon_exists (string icon_name) {
-      if (icon_theme == null) {
-        icon_theme = IconTheme.get_for_display (Display.get_default ());
-        icon_theme.add_search_path ("./assets");
-      }
+      if (icon_theme == null)
+        icon_theme = IconTheme.get_for_display (Gdk.Display.get_default ());
       return icon_theme.has_icon (icon_name);
     }
 

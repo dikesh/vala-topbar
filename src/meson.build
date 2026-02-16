@@ -17,6 +17,7 @@ executable(
     'ui/bar_right.vala',
     'ui/niri_workspaces.vala',
     'ui/system_resources.vala',
+    'ui/tray.vala',
     'services/utils.vala',
     'services/niri_ipc.vala',
     'services/system_resources.vala',
@@ -25,6 +26,7 @@ executable(
     'services/network.vala',
     'services/volume.vala',
     'services/bluetooth.vala',
+    'services/tray.vala',
   ],
   dependencies: [gtk4, layershell, gio, gio_unix, json, nm, m],
 )
