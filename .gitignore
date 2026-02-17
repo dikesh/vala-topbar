@@ -1,2 +1,19 @@
-scripts/compile.sh
+# Generated CSS (compiled from SCSS)
+assets/style.css
+assets/style.css.map
+
+# Generated GResource C source
+src/topbar-resources.c
+
+# Compiled binary
 topbar
+
+# Meson build directory
+build/
+
+# Object files
+*.o
+
+# Backup/editor files
+*~
+*.swp

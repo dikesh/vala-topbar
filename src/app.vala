@@ -7,12 +7,12 @@ namespace Topbar {
     private HashTable<Gdk.Monitor, Bar> bars;
 
     public App () {
-      Object (application_id: "com.arch.Topbar");
+      Object (application_id: "com.github.dikesh.Topbar");
     }
 
     protected override void startup () {
       base.startup ();
-      bars = new HashTable<Gdk.Monitor, Bar> (direct_hash, direct_equal);
+      bars = new HashTable<Gdk.Monitor, Bar>(direct_hash, direct_equal);
     }
 
     protected override void activate () {

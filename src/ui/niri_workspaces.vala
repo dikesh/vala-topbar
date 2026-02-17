@@ -14,11 +14,14 @@ namespace Topbar {
       workspace_id = window.workspace_id;
 
       var icon_name = window.app_id.ascii_down ();
-      if (icon_name == "org.gnome.nautilus")icon_name = "nautilus";
-      else if (icon_name == "kitty")icon_name = "kitty-custom";
-      else if (!Utils.icon_exists (icon_name))icon_name = "application-x-executable";
+      if (icon_name == "kitty") {
+        append (new Image.from_resource ("/com/github/dikesh/topbar/kitty-custom.svg"));
+      } else {
+        if (icon_name == "org.gnome.nautilus")icon_name = "nautilus";
+        else if (!Utils.icon_exists (icon_name))icon_name = "application-x-executable";
 
-      append (new Image.from_icon_name (icon_name));
+        append (new Image.from_icon_name (icon_name));
+      }
     }
 
     public static WindowBox empty_window_box () {
