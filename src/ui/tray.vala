@@ -64,26 +64,44 @@ namespace Topbar {
   public class SystemTray : Box {
     private TrayService tray;
     private HashTable<string, TrayItemWidget> widgets;
+    private Revealer revealer;
+    private Box box;
 
     public Orientation tray_orientation {
       get {
-        return orientation;
+        return box.orientation;
       }
       set {
-        orientation = value;
-        update_layout ();
+        box.orientation = value;
       }
     }
 
-    public int icon_size { get; set; default = 24; }
-    public int widget_spacing { get; set; default = 4; }
+    public int widget_spacing {
+      get {
+        return box.spacing;
+      }
+      set {
+        box.spacing = value;
+      }
+    }
 
     construct {
       widgets = new HashTable<string, TrayItemWidget>(str_hash, str_equal);
       tray = TrayService.get_default ();
 
-      set_spacing (widget_spacing);
-      set_css_classes ({ "bar-section", "systray" });
+      visible = false;
+
+      box = new Box (Orientation.HORIZONTAL, 4);
+      box.set_css_classes ({ "bar-section", "systray" });
+
+      revealer = new Revealer ();
+      revealer.transition_type = RevealerTransitionType.SLIDE_RIGHT;
+      revealer.transition_duration = 300;
+      revealer.reveal_child = false;
+      revealer.visible = false;
+      revealer.set_child (box);
+
+      append (revealer);
 
       // Connect to tray signals
       tray.item_added.connect (on_item_added);
@@ -93,16 +111,13 @@ namespace Topbar {
       foreach (var item in tray.items) {
         add_tray_item (item);
       }
-
-      notify["spacing"].connect (() => set_spacing (widget_spacing));
     }
 
-    public SystemTray () {
-      Object (orientation: Orientation.HORIZONTAL);
-    }
-
-    public SystemTray.with_orientation (Orientation orientation) {
-      Object (orientation: orientation);
+    private void update_visibility () {
+      bool has_items = widgets.size () > 0;
+      visible = has_items;
+      revealer.visible = has_items;
+      revealer.reveal_child = has_items;
     }
 
     private void on_item_added (string item_id) {
@@ -115,56 +130,19 @@ namespace Topbar {
     private void on_item_removed (string item_id) {
       var widget = widgets.get (item_id);
       if (widget != null) {
-        remove (widget);
+        box.remove (widget);
         widgets.remove (item_id);
+        update_visibility ();
       }
     }
 
     private void add_tray_item (TrayItem item) {
-      if (widgets.contains (item.item_id)) {
-        return;
-      }
+      if (widgets.contains (item.item_id))return;
 
       var widget = new TrayItemWidget (item);
       widgets.set (item.item_id, widget);
-      append (widget);
-    }
-
-    private void update_layout () {
-      queue_resize ();
-    }
-
-    /**
-     * Filter items by category
-     */
-    public void filter_by_category (Category category) {
-      foreach (var item in tray.items) {
-        var widget = widgets.get (item.item_id);
-        if (widget != null) {
-          widget.visible = (item.category == category);
-        }
-      }
-    }
-
-    /**
-     * Show all items
-     */
-    public void show_all_items () {
-      foreach (var widget in widgets.get_values ()) {
-        widget.visible = true;
-      }
-    }
-
-    /**
-     * Hide passive items
-     */
-    public void hide_passive_items () {
-      foreach (var item in tray.items) {
-        var widget = widgets.get (item.item_id);
-        if (widget != null) {
-          widget.visible = (item.status != Status.PASSIVE);
-        }
-      }
+      box.append (widget);
+      update_visibility ();
     }
   }
 }

@@ -50,6 +50,7 @@ namespace  Topbar {
     private void handle_change () {
       try {
         var output = Utils.run_script_sync ({ "wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@" });
+        if (!("Volume:" in output))return;
         level = (int) (100 * float.parse (output.strip ().split (" ")[1]));
 
         if ("MUTED" in output)icon_name = "audio-volume-muted";
