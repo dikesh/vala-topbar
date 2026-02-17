@@ -7,6 +7,7 @@ namespace  Topbar {
 
     public int level;
     public string icon_name;
+    private bool is_muted;
 
     public signal void updated (int level, string icon_name);
 
@@ -17,7 +18,8 @@ namespace  Topbar {
 
     private VolumeService () {
       try {
-        handle_change ();
+        // Init string values
+        icon_name = get_icon ();
 
         var proc = new Subprocess.newv (
           { "pw-dump", "--monitor" },
@@ -50,13 +52,10 @@ namespace  Topbar {
     private void handle_change () {
       try {
         var output = Utils.run_script_sync ({ "wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@" });
-        if (!("Volume:" in output))return;
+        if (output == null || !("Volume:" in output))return;
         level = (int) (100 * float.parse (output.strip ().split (" ")[1]));
-
-        if ("MUTED" in output)icon_name = "audio-volume-muted";
-        else if (level >= 66)icon_name = "audio-volume-high-symbolic";
-        else if (level >= 33)icon_name = "audio-volume-medium-symbolic";
-        else icon_name = "audio-volume-low-symbolic";
+        is_muted = "MUTED" in output;
+        icon_name = get_icon ();
 
         updated (level, icon_name);
       } catch (Error e) {
@@ -71,6 +70,13 @@ namespace  Topbar {
 
     public void toggle_volume_mute () {
       Utils.run_script_async ({ "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle" });
+    }
+
+    private string get_icon () {
+      if (is_muted)return "audio-volume-muted-symbolic";
+      if (level >= 66)return "audio-volume-high-symbolic";
+      if (level >= 33)return "audio-volume-medium-symbolic";
+      return "audio-volume-low-symbolic";
     }
   }
 }
