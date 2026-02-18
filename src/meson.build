@@ -44,6 +44,7 @@ executable(
   sources: [
     'main.vala',
     'app.vala',
+    'ipc.vala',
 
     'ui/bar.vala',
     'ui/bar_left.vala',
@@ -52,6 +53,8 @@ executable(
     'ui/niri_workspaces.vala',
     'ui/system_resources.vala',
     'ui/tray.vala',
+
+    'osd/volume_osd.vala',
 
     'services/utils.vala',
     'services/niri_ipc.vala',

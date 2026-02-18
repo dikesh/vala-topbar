@@ -13,6 +13,7 @@ namespace Topbar {
     protected override void startup () {
       base.startup ();
       bars = new HashTable<Gdk.Monitor, Bar>(direct_hash, direct_equal);
+      VolumeOSDIpc.get_default ();
     }
 
     protected override void activate () {

@@ -7,7 +7,7 @@ namespace Topbar {
 
     private const string apps_relative_path = ".config/rofi/launchers/type-3/launcher.sh";
     private const string power_menu_relative_path = ".config/rofi/powermenu/type-5/powermenu.sh";
-    private const string bluetooth_menu_path = "./scripts/bluetooth.sh";
+    private const string bluetooth_menu_path = "scripts/bluetooth.sh";
     private static IconTheme icon_theme;
 
     public static string get_full_path (string relative_path) {
@@ -65,7 +65,7 @@ namespace Topbar {
     }
 
     public static void launch_bluetooth_menu () {
-      Utils.run_script_async ({ bluetooth_menu_path });
+      Utils.run_script_async ({ Utils.get_full_path (bluetooth_menu_path) });
     }
 
     public static void launch_power_menu () {

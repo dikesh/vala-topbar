@@ -9,3 +9,4 @@ project(
 )
 
 subdir('src')
+subdir('tools')

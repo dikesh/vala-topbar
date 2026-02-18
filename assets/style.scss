@@ -29,12 +29,12 @@ $pink: #f5bde6;
 $flamingo: #f0c6c6;
 $rosewater: #f4dbd6;
 
-* {
-  all: unset;
-  font-family: 'Hack Nerd Font Mono';
-}
-
 .bar-container {
+  * {
+    all: unset;
+    font-family: 'Hack Nerd Font Mono';
+  }
+
   margin: 0 8px 4px;
 
   .bar-section {
@@ -133,5 +133,43 @@ tooltip {
 
   .day-number.other-month {
     color: gray;
+  }
+}
+
+
+.volume-osd-window{
+
+  background:transparent;
+
+  .volume-osd-container{
+    background-color:rgba($mantle,0.95);
+    border-radius:999px;
+    padding:10px 24px;
+  }
+
+  .volume-osd-bar{
+    min-height:8px;
+    min-width:220px;
+    margin-top: 16px;
+
+    trough{
+      background-color:rgba($surface2,0.6);
+      border-radius:999px;
+    }
+
+    progress{
+      background-color:$blue;
+      border-radius:999px;
+    }
+  }
+
+  .volume-osd-label{
+    color:$blue;
+    font-size:14px;
+    font-weight:bold;
+  }
+
+  .volume-osd-icon{
+    color:$blue;
   }
 }
