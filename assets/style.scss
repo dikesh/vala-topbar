@@ -93,6 +93,33 @@ $rosewater: #f4dbd6;
       background: $surface0;
     }
   }
+
+  .calendar-container {
+    background: $surface0;
+    padding: 10px;
+
+    header {
+      background-color: $surface2;
+      color: $lavender;
+      padding: 10px;
+    }
+
+    grid > .day-name {
+      font-weight: bold;
+      color: $flamingo;
+    }
+
+    .day-number.today {
+      background-color: $surface1;
+      color: $lavender;
+      border-radius: 10%;
+    }
+
+    .day-number.other-month {
+      color: gray;
+    }
+  }
+
 }
 
 tooltip {
@@ -109,33 +136,6 @@ tooltip {
     margin: 4px;
   }
 }
-
-.calendar-container {
-  background: $surface0;
-  padding: 10px;
-
-  header {
-    background-color: $surface2;
-    color: $lavender;
-    padding: 10px;
-  }
-
-  grid > .day-name {
-    font-weight: bold;
-    color: $flamingo;
-  }
-
-  .day-number.today {
-    background-color: $surface1;
-    color: $lavender;
-    border-radius: 10%;
-  }
-
-  .day-number.other-month {
-    color: gray;
-  }
-}
-
 
 .volume-osd-window{
 
