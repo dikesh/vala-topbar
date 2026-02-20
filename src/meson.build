@@ -2,6 +2,7 @@ gtk4 = dependency('gtk4')
 layershell = dependency('gtk4-layer-shell-0')
 gio = dependency('gio-2.0')
 gio_unix = dependency('gio-unix-2.0')
+gee = dependency('gee-0.8')
 json = dependency('json-glib-1.0')
 nm = dependency('libnm')
 m = meson.get_compiler('c').find_library('m')
@@ -74,6 +75,7 @@ executable(
     layershell,
     gio,
     gio_unix,
+    gee,
     json,
     nm,
     m

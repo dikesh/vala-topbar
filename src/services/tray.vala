@@ -1,3 +1,5 @@
+using Gee;
+
 namespace Topbar {
 
   // ------------------------- Pixmap -------------------------
@@ -6,7 +8,7 @@ namespace Topbar {
     int height;
     uint8[] bytes;
 
-    internal static Pixmap from_variant (GLib.Variant variant) {
+    internal static Pixmap from_variant (Variant variant) {
       Pixmap pixmap = Pixmap ();
 
       int width, height;
@@ -20,12 +22,12 @@ namespace Topbar {
       return pixmap;
     }
 
-    internal static Pixmap[] array_from_variant (GLib.Variant variant) {
+    internal static Pixmap[] array_from_variant (Variant variant) {
       Pixmap[] icons = new Pixmap[0];
 
-      GLib.VariantIter iter = variant.iterator ();
+      VariantIter iter = variant.iterator ();
 
-      GLib.Variant child;
+      Variant child;
       while ((child = iter.next_value ()) != null) {
         Pixmap pm = Pixmap.from_variant (child);
         icons += pm;
@@ -41,11 +43,11 @@ namespace Topbar {
     string title;
     string description;
 
-    internal static Tooltip from_variant (GLib.Variant variant) {
+    internal static Tooltip from_variant (Variant variant) {
       Tooltip tooltip = Tooltip ();
 
       string icon_name;
-      GLib.VariantIter iter;
+      VariantIter iter;
       string title;
       string description;
 
@@ -54,7 +56,7 @@ namespace Topbar {
       tooltip.title = title;
       tooltip.description = description;
 
-      GLib.Variant child;
+      Variant child;
 
       Pixmap[] icons = new Pixmap[0];
 
@@ -131,6 +133,7 @@ namespace Topbar {
   public class TrayItem : Object {
     private IItem proxy;
     private bool needs_update = false;
+    private static HashMap<string, string ?> icon_path_cache = new HashMap<string, string ?> ();
 
     /** The Title of the TrayItem */
     public string title { get; private set; }
@@ -147,7 +150,7 @@ namespace Topbar {
     /**
      * Show the context menu for this tray item.
      */
-    public void show_context_menu (int x, int y) {
+    public async void show_context_menu (int x, int y) {
       if (menu_path == null)return;
 
       try {
@@ -156,17 +159,17 @@ namespace Topbar {
       } catch (Error e) {
         // If that fails, try opening the menu at root (id=0)
         try {
-          Bus.get_sync (BusType.SESSION).call_sync (
-            proxy.g_name_owner,
-            menu_path,
-            "com.canonical.dbusmenu",
-            "Event",
-            new Variant ("(isvu)", 0, "opened", new Variant ("i", 0), 0u),
-            null,
-            DBusCallFlags.NONE,
-            -1,
-            null
-          );
+          var bus = yield Bus.get (BusType.SESSION);
+
+          yield bus.call (proxy.g_name_owner,
+                          menu_path,
+                          "com.canonical.dbusmenu",
+                          "Event",
+                          new Variant ("(isvu)", 0, "opened", new Variant ("i", 0), 0u),
+                          null,
+                          DBusCallFlags.NONE,
+                          -1,
+                          null);
         } catch (Error e2) {
           warning ("Failed to show context menu: %s", e2.message);
         }
@@ -181,7 +184,7 @@ namespace Topbar {
       owned get {
         if (tooltip == null)return "";
 
-        var tt = GLib.Markup.escape_text (tooltip.title);
+        var tt = Markup.escape_text (tooltip.title);
         if (tooltip.description != "")tt += "\n" + tooltip.description;
 
         return tt;
@@ -256,7 +259,7 @@ namespace Topbar {
      * This property unifies the [property@TrayService.TrayItem:icon-name],
      * [property@TrayService.TrayItem:icon-theme-path] and [property@TrayService.TrayItem:icon-pixbuf] properties.
      */
-    public GLib.Icon gicon { get; private set; }
+    public Icon gicon { get; private set; }
 
     /** The id of the item used to uniquely identify the TrayItems by this lib.*/
     public string item_id { get; private set; }
@@ -314,17 +317,17 @@ namespace Topbar {
 
     private void update_gicon () {
       if ((icon_name != null) && (icon_name != "")) {
-        if (GLib.FileUtils.test (icon_name, GLib.FileTest.EXISTS)) {
-          gicon = new GLib.FileIcon (GLib.File.new_for_path (icon_name));
+        if (FileUtils.test (icon_name, FileTest.EXISTS)) {
+          gicon = new FileIcon (File.new_for_path (icon_name));
         } else if ((icon_theme_path != null) && (icon_theme_path != "")) {
           string path = find_icon_in_theme (icon_name, icon_theme_path);
           if (path != null) {
-            gicon = new GLib.FileIcon (GLib.File.new_for_path (path));
+            gicon = new FileIcon (File.new_for_path (path));
           } else {
-            gicon = new GLib.ThemedIcon (icon_name);
+            gicon = new ThemedIcon (icon_name);
           }
         } else {
-          gicon = new GLib.ThemedIcon (icon_name);
+          gicon = new ThemedIcon (icon_name);
         }
       } else {
         Pixmap[] pixmaps = (status == Status.NEEDS_ATTENTION)
@@ -338,7 +341,7 @@ namespace Topbar {
                                 Variant parameters) {
       if (needs_update)return;
       needs_update = true;
-      GLib.Timeout.add_once (10, () => {
+      Timeout.add_once (10, () => {
         needs_update = false;
         refresh_all_properties.begin ();
       });
@@ -513,20 +516,20 @@ namespace Topbar {
      * so it can update the menu if needed. You should call this method
      * before openening the menu.
      */
-    public void about_to_show () {
+    public async void about_to_show () {
       if (menu_path == null)return;
       try {
-        Bus.get_sync (BusType.SESSION).call_sync (
-          this.proxy.g_name_owner,
-          menu_path,
-          "com.canonical.dbusmenu",
-          "AboutToShow",
-          new Variant ("(i)", 0),
-          null,
-          DBusCallFlags.NONE,
-          -1,
-          null
-        );
+        var bus = yield Bus.get (BusType.SESSION);
+
+        yield bus.call (this.proxy.g_name_owner,
+                        menu_path,
+                        "com.canonical.dbusmenu",
+                        "AboutToShow",
+                        new Variant ("(i)", 0),
+                        null,
+                        DBusCallFlags.NONE,
+                        -1,
+                        null);
       } catch (Error r) {
         // silently ignore
       }
@@ -577,6 +580,12 @@ namespace Topbar {
         return null;
       }
 
+      var cache_key = icon_name + "\x00" + theme_path;
+      if (icon_path_cache.has_key (cache_key))
+        return icon_path_cache[cache_key];
+
+      string ? result = null;
+
       try {
         Dir dir = Dir.open (theme_path, 0);
         string ? name = null;
@@ -587,7 +596,8 @@ namespace Topbar {
           if (FileUtils.test (path, FileTest.IS_DIR)) {
             string ? icon = find_icon_in_theme (icon_name, path);
             if (icon != null) {
-              return icon;
+              result = icon;
+              break;
             } else {
               continue;
             }
@@ -598,12 +608,17 @@ namespace Topbar {
             name = name.substring (0, dot_index);
           }
 
-          if (name == icon_name)return path;
+          if (name == icon_name) {
+            result = path;
+            break;
+          }
         }
       } catch (FileError err) {
-        return null;
+        // leave result as null
       }
-      return null;
+
+      icon_path_cache[cache_key] = result;
+      return result;
     }
 
     private Gdk.Pixbuf ? _get_icon_pixbuf () {
@@ -672,13 +687,12 @@ namespace Topbar {
 
   [DBus (name = "org.kde.StatusNotifierWatcher")]
   internal class StatusNotifierWatcher : Object {
-    private HashTable<string, string> _items =
-      new HashTable<string, string>(str_hash, str_equal);
+    private HashMap<string, string> _items = new HashMap<string, string> ();
     private uint noc_signal_id;
     private DBusConnection bus;
 
     public string[] RegisteredStatusNotifierItems { owned get {
-                                                      return _items.get_values_as_ptr_array ().data;
+                                                      return _items.values.to_array ();
                                                     } }
     public bool IsStatusNotifierHostRegistered { get; default = true; }
     public int ProtocolVersion { get; default = 0; }
@@ -703,8 +717,9 @@ namespace Topbar {
           string new_owner = null;
           string old_owner = null;
           parameters.get ("(sss)", &name, &old_owner, &new_owner);
-          if ((new_owner == "") && _items.contains (name)) {
-            string full_path = _items.take (name);
+          if ((new_owner == "") && _items.has_key (name)) {
+            string full_path = _items[name];
+            _items.unset (name);
             StatusNotifierItemUnregistered (full_path);
           }
         });
@@ -725,7 +740,7 @@ namespace Topbar {
         path = "/StatusNotifierItem";
       }
 
-      _items.set (busName, busName + path);
+      _items[busName] = busName + path;
       StatusNotifierItemRegistered (busName + path);
     }
 
@@ -770,14 +785,14 @@ namespace Topbar {
     private StatusNotifierWatcher watcher;
     private IWatcher proxy;
 
-    private HashTable<string, TrayItem> _items =
-      new HashTable<string, TrayItem>(str_hash, str_equal);
+    private HashMap<string, TrayItem> _items = new HashMap<string, TrayItem> ();
 
     /**
      * List of currently registered tray items
      */
-    public List<weak TrayItem> items { owned get {
-                                         return _items.get_values ();
+    public ArrayList<TrayItem> items { owned get {
+                                         return new ArrayList<TrayItem>.wrap (
+                                           _items.values.to_array ());
                                        } }
 
     private ListStore _items_store;
@@ -868,11 +883,11 @@ namespace Topbar {
         proxy.StatusNotifierItemUnregistered.connect (on_item_unregister);
 
         proxy.notify["g-name-owner"].connect (() => {
-          _items.foreach ((service, _) => {
-            item_removed (service);
-          });
+          foreach (var entry in _items.entries) {
+            item_removed (entry.key);
+          }
 
-          _items.remove_all ();
+          _items.clear ();
           _items_store.remove_all ();
 
           if (proxy != null) {
@@ -906,7 +921,7 @@ namespace Topbar {
       // If a service just appeared (new owner, no old owner)
       if (new_owner != "" && old_owner == "") {
         // Give it time to initialize
-        GLib.Timeout.add (1000, () => {
+        Timeout.add (1000, () => {
           check_and_notify_service.begin (connection, name, new_owner);
           return false;
         });
@@ -947,13 +962,13 @@ namespace Topbar {
     }
 
     private void on_item_register (string service) {
-      if (_items.contains (service))return;
+      if (_items.has_key (service))return;
 
       var parts = service.split ("/", 2);
       TrayItem item = new TrayItem (parts[0], "/" + parts[1]);
 
       // Add to items immediately to prevent duplicate registration
-      _items.set (service, item);
+      _items[service] = item;
 
       item.ready.connect (() => {
         _items_store.append (item);
@@ -962,10 +977,10 @@ namespace Topbar {
     }
 
     private void on_item_unregister (string service) {
-      var item = _items.get (service);
+      var item = _items[service];
       if (item == null)return;
 
-      _items.remove (service);
+      _items.unset (service);
 
       // Only try to remove from store if item exists in it
       uint pos;
@@ -980,7 +995,7 @@ namespace Topbar {
      * gets the TrayItem with the given item-id.
      */
     public TrayItem get_item (string item_id) {
-      return _items.get (item_id);
+      return _items[item_id];
     }
   }
 }

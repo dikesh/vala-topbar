@@ -64,15 +64,18 @@ namespace  Topbar {
         switch (message.strip ()) {
 
           case "volume-up" :
-            vs.update_volume_level (true);
+            yield vs.update_volume_level (true, true);
+
             break;
 
           case "volume-down" :
-            vs.update_volume_level (false);
+            yield vs.update_volume_level (false, true);
+
             break;
 
           case "volume-mute":
-            vs.toggle_volume_mute ();
+            yield vs.toggle_volume_mute (true);
+
             break;
         }
       } catch (Error e) {

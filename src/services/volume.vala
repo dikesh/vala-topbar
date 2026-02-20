@@ -9,6 +9,7 @@ namespace  Topbar {
     public string icon_name;
     private bool is_muted;
 
+    private bool needs_update = false;
     public signal void updated (int level, string icon_name);
 
     public static VolumeService get_default () {
@@ -42,16 +43,23 @@ namespace  Topbar {
 
           if (line == null)return;
 
-          if ("Audio/Device" in line || "PipeWire:Interface:Metadata" in line)handle_change ();
+          if (("Audio/Device" in line || "PipeWire:Interface:Metadata" in line) && !needs_update) {
+            needs_update = true;
+            Timeout.add_once (50, () => {
+              needs_update = false;
+              handle_change.begin ();
+            });
+          }
         }
       } catch (Error e) {
         warning ("Read line error: %s", e.message);
       }
     }
 
-    private void handle_change (bool nudge_volume_osd = false) {
+    private async void handle_change (bool show_vol_osd = false) {
       try {
-        var output = Utils.run_script_sync ({ "wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@" });
+        var output = yield Utils.run_script ({ "wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@" });
+
         if (output == null || !("Volume:" in output))return;
 
         var prev_level = level;
@@ -63,27 +71,29 @@ namespace  Topbar {
 
         if (prev_level != level || prev_is_muted != is_muted) {
           updated (level, icon_name);
-          if (nudge_volume_osd)VolumeOSD.get_default ().show_volume (level, icon_name);
+          if (show_vol_osd)VolumeOSD.get_default ().show_volume (level, icon_name);
         }
       } catch (Error e) {
         warning ("Error: %s", e.message);
       }
     }
 
-    public void update_volume_level (bool increase) {
+    public async void update_volume_level (bool increase, bool show_vol_osd = false) {
       try {
         var change = increase ? "5%+" : "5%-";
-        Utils.run_script_sync ({ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", change });
-        handle_change (true);
+        yield Utils.run_script ({ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", change });
+
+        handle_change.begin (show_vol_osd);
       } catch (Error e) {
         print ("Failed to change volume level: %s", e.message);
       }
     }
 
-    public void toggle_volume_mute () {
+    public async void toggle_volume_mute (bool show_vol_osd = false) {
       try {
-        Utils.run_script_sync ({ "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle" });
-        handle_change (true);
+        yield Utils.run_script ({ "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle" });
+
+        handle_change.begin (show_vol_osd);
       } catch (Error e) {
         print ("Failed to toggle volume mute: %s", e.message);
       }

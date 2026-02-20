@@ -8,16 +8,6 @@ namespace Topbar {
       Object (application: app, title: "Topbar");
       set_css_classes ({ "bar-container" });
 
-      // Load CSS
-      var provider = new CssProvider ();
-      provider.load_from_resource ("/com/github/dikesh/topbar/style.css");
-
-      Gtk.StyleContext.add_provider_for_display (
-        Gdk.Display.get_default (),
-        provider,
-        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-      );
-
       // Layer shell settings
       GtkLayerShell.init_for_window (this);
       GtkLayerShell.set_monitor (this, monitor);

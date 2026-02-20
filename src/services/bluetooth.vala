@@ -1,3 +1,5 @@
+using Gee;
+
 namespace Topbar {
 
   // Constants
@@ -91,9 +93,9 @@ namespace Topbar {
       if (iface == "org.bluez.Adapter1" || iface == "org.bluez.Device1")refresh.begin ();
     }
 
-    private async List<string> get_device_paths () {
+    private async ArrayList<string> get_device_paths () {
 
-      var result = new List<string> ();
+      var result = new ArrayList<string> ();
 
       try {
 
@@ -112,7 +114,7 @@ namespace Topbar {
           Variant entry = objects.get_child_value (i);
           string path = entry.get_child_value (0).get_string (null);
 
-          if (path.contains ("/dev_"))result.append (path);
+          if (path.contains ("/dev_"))result.add (path);
         }
       } catch (Error e) {
         warning ("Device list failed: %s", e.message);

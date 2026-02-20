@@ -1,3 +1,4 @@
+using Gee;
 using Json;
 
 namespace Topbar {
@@ -38,9 +39,10 @@ namespace Topbar {
     private static NiriIPC ? instance = null;
 
     private DataInputStream input_stream;
+    private Json.Parser parser;
 
-    public HashTable<int, NiriWorkspace> niri_workspaces;
-    public HashTable<int, NiriWindow> niri_windows;
+    public HashMap<int, NiriWorkspace> niri_workspaces;
+    public HashMap<int, NiriWindow> niri_windows;
 
     public signal void workspaces_changed ();
     public signal void workspace_focus_changed (int workspace_id);
@@ -71,8 +73,11 @@ namespace Topbar {
       output_stream.flush ();
 
       // Init tables
-      niri_workspaces = new HashTable<int, NiriWorkspace>(direct_hash, direct_equal);
-      niri_windows = new HashTable<int, NiriWindow>(direct_hash, direct_equal);
+      niri_workspaces = new HashMap<int, NiriWorkspace>();
+      niri_windows = new HashMap<int, NiriWindow>();
+
+      // Parser
+      parser = new Json.Parser ();
 
       // Start async read loop
       read_next_line ();
@@ -100,7 +105,6 @@ namespace Topbar {
 
     private void handle_line (string line) {
       try {
-        var parser = new Json.Parser ();
         parser.load_from_data (line, -1);
 
         var root = parser.get_root ();
@@ -131,12 +135,12 @@ namespace Topbar {
       if (workspaces == null)return;
 
       // Remove all workspaces and replace with new ones
-      niri_workspaces.remove_all ();
+      niri_workspaces.clear ();
 
       workspaces.foreach_element ((arr, idx, element) => {
         var ws_obj = element.get_object ();
         var ws_id = (int) ws_obj.get_int_member ("id");
-        niri_workspaces.insert (ws_id, new NiriWorkspace (ws_obj));
+        niri_workspaces.set (ws_id, new NiriWorkspace (ws_obj));
       });
 
       workspaces_changed ();
@@ -145,9 +149,8 @@ namespace Topbar {
     private void on_workspace_activated (Json.Object msg) {
       var workspace_id = (int) msg.get_object_member ("WorkspaceActivated").get_int_member ("id");
 
-      niri_workspaces.for_each ((id, niri_workspace) => {
-        niri_workspace.is_focused = id == workspace_id;
-      });
+      foreach (var niri_ws in niri_workspaces.values)
+        niri_ws.is_focused = niri_ws.id == workspace_id;
 
       workspace_focus_changed (workspace_id);
     }
@@ -156,10 +159,13 @@ namespace Topbar {
       // Get array of windows
       var windows = msg.get_object_member ("WindowsChanged").get_array_member ("windows");
 
+      // Remove all windows if exists
+      niri_windows.clear ();
+
       windows.foreach_element ((arr, idx, element) => {
         var win_obj = element.get_object ();
         var win_id = (int) win_obj.get_int_member ("id");
-        niri_windows.insert (win_id, new NiriWindow (win_obj));
+        niri_windows.set (win_id, new NiriWindow (win_obj));
       });
 
       windows_changed ();
@@ -169,14 +175,14 @@ namespace Topbar {
       var win_obj = msg.get_object_member ("WindowOpenedOrChanged").get_object_member ("window");
       var win_id = (int) win_obj.get_int_member ("id");
 
-      niri_windows.insert (win_id, new NiriWindow (win_obj));
+      niri_windows.set (win_id, new NiriWindow (win_obj));
 
       windows_changed ();
     }
 
     private void on_window_closed (Json.Object msg) {
       var window_id = (int) msg.get_object_member ("WindowClosed").get_int_member ("id");
-      niri_windows.remove (window_id);
+      niri_windows.unset (window_id);
       window_closed (window_id);
     }
 

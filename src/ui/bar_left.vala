@@ -49,27 +49,40 @@ namespace Topbar {
   // -------------- Tools ----------------
   private class Tools : Box {
 
+    private Revealer revealer;
+
     public Tools () {
       var btn = new Button ();
       btn.set_css_classes ({ "bar-section", "apps" });
       btn.child = new Label ("");
 
-      var revealer_child = new Box (Orientation.HORIZONTAL, 8);
-      revealer_child.append (new ScreenRec ());
-      revealer_child.append (new ColorPicker ());
-
-      var revealer = new Revealer ();
-      revealer.child = revealer_child;
-      revealer.set_transition_duration (500);
-      revealer.set_transition_type (RevealerTransitionType.SWING_RIGHT);
-
       btn.clicked.connect (() => {
+        if (revealer == null)set_revealer ();
         revealer.reveal_child = !revealer.reveal_child;
         this.spacing = revealer.reveal_child ? 8 : 0;
       });
 
       append (btn);
+    }
+
+    private void set_revealer () {
+      var revealer_child = new Box (Orientation.HORIZONTAL, 8);
+      revealer_child.append (new ScreenRec ());
+      revealer_child.append (new ColorPicker ());
+
+      revealer = new Revealer ();
+      revealer.child = revealer_child;
+      revealer.set_transition_duration (500);
+      revealer.set_transition_type (RevealerTransitionType.SWING_RIGHT);
+
       append (revealer);
+
+      revealer.notify["child-revealed"].connect (() => {
+        if (!revealer.child_revealed) {
+          revealer.unparent ();
+          revealer = null;
+        }
+      });
     }
   }
 

@@ -24,9 +24,11 @@ namespace Topbar {
         client = new NM.Client ();
 
         update ();
-        client.notify.connect (() => update ());
-        client.device_added.connect (() => updated ());
-        client.device_removed.connect (() => updated ());
+        client.notify["active-connections"].connect (() => update ());
+        client.notify["connectivity"].connect (() => update ());
+        client.notify["state"].connect (() => update ());
+        client.device_added.connect (() => update ());
+        client.device_removed.connect (() => update ());
       } catch (Error err) {
         warning ("Nerwork manager failed: %s", err.message);
       }

@@ -23,13 +23,21 @@ namespace Topbar {
       return Path.build_filename (get_exe_dir (), relative_path);
     }
 
+    public static async string get_file_contents_async (string path) throws Error {
+      uint8[] contents;
+      var file = File.new_for_path (path);
+      yield file.load_contents_async (null, out contents, null);
+
+      return (string) contents;
+    }
+
     public static bool icon_exists (string icon_name) {
       if (icon_theme == null)
         icon_theme = IconTheme.get_for_display (Gdk.Display.get_default ());
       return icon_theme.has_icon (icon_name);
     }
 
-    public static string run_script_sync (string[] argv) throws Error {
+    public static async string run_script (string[] argv) throws Error {
       var subprocess = new Subprocess.newv (
         argv,
         SubprocessFlags.STDOUT_PIPE | SubprocessFlags.STDERR_PIPE
@@ -37,7 +45,7 @@ namespace Topbar {
 
       Bytes stdout_bytes;
       Bytes stderr_bytes;
-      subprocess.communicate (null, null, out stdout_bytes, out stderr_bytes);
+      yield subprocess.communicate_async (null, null, out stdout_bytes, out stderr_bytes);
 
       if (!subprocess.get_successful ()) {
         throw new Error (

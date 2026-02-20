@@ -1,3 +1,4 @@
+using Gee;
 using Gtk;
 
 namespace Topbar {
@@ -63,7 +64,7 @@ namespace Topbar {
    */
   public class SystemTray : Box {
     private TrayService tray;
-    private HashTable<string, TrayItemWidget> widgets;
+    private HashMap<string, TrayItemWidget> widgets;
     private Revealer revealer;
     private Box box;
 
@@ -86,7 +87,7 @@ namespace Topbar {
     }
 
     construct {
-      widgets = new HashTable<string, TrayItemWidget>(str_hash, str_equal);
+      widgets = new HashMap<string, TrayItemWidget>();
       tray = TrayService.get_default ();
 
       visible = false;
@@ -114,7 +115,7 @@ namespace Topbar {
     }
 
     private void update_visibility () {
-      bool has_items = widgets.size () > 0;
+      bool has_items = widgets.size > 0;
       visible = has_items;
       revealer.visible = has_items;
       revealer.reveal_child = has_items;
@@ -131,13 +132,13 @@ namespace Topbar {
       var widget = widgets.get (item_id);
       if (widget != null) {
         box.remove (widget);
-        widgets.remove (item_id);
+        widgets.unset (item_id);
         update_visibility ();
       }
     }
 
     private void add_tray_item (TrayItem item) {
-      if (widgets.contains (item.item_id))return;
+      if (widgets.has_key (item.item_id))return;
 
       var widget = new TrayItemWidget (item);
       widgets.set (item.item_id, widget);

@@ -56,12 +56,12 @@ namespace Topbar {
       });
 
       var click_gesture = new GestureClick ();
-      click_gesture.pressed.connect (() => volume.toggle_volume_mute ());
+      click_gesture.pressed.connect (() => volume.toggle_volume_mute.begin ());
 
       var scroll_gesture = new EventControllerScroll (EventControllerScrollFlags.VERTICAL);
       scroll_gesture.scroll.connect ((dx, dy) => {
-        if (dy < 0)volume.update_volume_level (true);
-        else if (dy > 0)volume.update_volume_level (false);
+        if (dy < 0)volume.update_volume_level.begin (true);
+        else if (dy > 0)volume.update_volume_level.begin (false);
         return true;
       });
 
@@ -117,9 +117,9 @@ namespace Topbar {
       }
     }
 
-    private void update (BatteryService b) {
-      icon.set_from_icon_name (b.battery_icon_name);
-      label.set_text ("%d%%".printf (b.percentage));
+    private void update (BatteryService battery) {
+      icon.set_from_icon_name (battery.battery_icon_name);
+      label.set_text ("%d%%".printf (battery.percentage));
     }
   }
 
