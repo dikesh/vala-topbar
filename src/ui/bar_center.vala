@@ -20,7 +20,7 @@ namespace Topbar {
     }
 
     private DateTimeService () {
-      Timeout.add (250, () => {
+      Timeout.add_seconds (1, () => {
         // Datetime
         var curr_datetime = show_utc ? new DateTime.now_utc () : new DateTime.now_local ();
         if (datetime == curr_datetime)return true;
@@ -52,7 +52,7 @@ namespace Topbar {
     public TimeWidget () {
       Object (spacing: 8, tooltip_text: "Click to toggle between Local and UTC time");
 
-      var time_button = new Button ();
+      var time_button = new Button.with_label ("00:00:00");
       append (new Image.from_icon_name ("preferences-system-time-symbolic"));
       append (time_button);
 
@@ -71,7 +71,7 @@ namespace Topbar {
       Object (spacing: 8, tooltip_text: "Click to show / hide calendar");
 
       // Add children
-      var date_button = new Button ();
+      var date_button = new Button.with_label ("Thu 01 Jan 2026");
       append (new Image.from_icon_name ("x-office-calendar-symbolic"));
       append (date_button);
 

@@ -82,7 +82,7 @@ namespace Topbar {
 
       revealer.notify["child-revealed"].connect (() => {
         if (!revealer.child_revealed) {
-          revealer.unparent ();
+          remove (revealer);
           revealer = null;
         }
       });

@@ -106,6 +106,7 @@ namespace Topbar {
     public void remove_window_box (WindowBox win_box) {
       ws_window_ids.remove (win_box.id);
       remove (win_box);
+      win_box = null;
       if (ws_window_ids.size == 0)add_empty_window_box ();
       update_visibility ();
     }
@@ -201,13 +202,18 @@ namespace Topbar {
         var next_ws_box = ws_box == null ? null : (WorkspaceBox) ws_box.get_next_sibling ();
 
         // Remove extra workspace boxes
-        if (niri_ws == null && ws_box != null)remove (ws_box);
+        if (niri_ws == null && ws_box != null) {
+          remove (ws_box);
+          ws_box = null;
+        }
         // Append new workspace boxes
-        else if (niri_ws != null && ws_box == null)append (new WorkspaceBox (niri_ws, niri));
+        else if (niri_ws != null && ws_box == null)
+          append (new WorkspaceBox (niri_ws, niri));
         // Update workspace boxes
         else if (niri_ws.id != ws_box.id) {
           var prev = (WorkspaceBox) ws_box.get_prev_sibling ();
           remove (ws_box);
+          ws_box = null;
           insert_child_after (new WorkspaceBox (niri_ws, niri), prev);
         }
 

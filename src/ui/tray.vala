@@ -8,6 +8,7 @@ namespace Topbar {
   public class TrayItemWidget : Box {
     private Button button;
     private TrayItem _item;
+    private Image image;
 
     public TrayItem item {
       get {
@@ -32,9 +33,13 @@ namespace Topbar {
     construct {
       orientation = Orientation.HORIZONTAL;
 
+      image = new Image ();
+      image.pixel_size = 16;
+
       button = new Button ();
       button.add_css_class ("tray-item");
       button.clicked.connect (on_left_click);
+      button.set_child (image);
 
       append (button);
     }
@@ -45,9 +50,7 @@ namespace Topbar {
     }
 
     private void update_widget () {
-      var icon = new Image.from_gicon (_item.gicon);
-      icon.pixel_size = 16;
-      button.set_child (icon);
+      image.set_from_gicon (_item.gicon);
     }
 
     private void on_item_changed () {
@@ -99,7 +102,6 @@ namespace Topbar {
       revealer.transition_type = RevealerTransitionType.SLIDE_RIGHT;
       revealer.transition_duration = 300;
       revealer.reveal_child = false;
-      revealer.visible = false;
       revealer.set_child (box);
 
       append (revealer);
@@ -117,7 +119,6 @@ namespace Topbar {
     private void update_visibility () {
       bool has_items = widgets.size > 0;
       visible = has_items;
-      revealer.visible = has_items;
       revealer.reveal_child = has_items;
     }
 
@@ -132,6 +133,7 @@ namespace Topbar {
       var widget = widgets.get (item_id);
       if (widget != null) {
         box.remove (widget);
+        widget = null;
         widgets.unset (item_id);
         update_visibility ();
       }

@@ -79,7 +79,7 @@ Logs are written to `/tmp/topbar.log` when run via the toggle script.
 
 Topbar listens on a Unix socket at `$XDG_RUNTIME_DIR/topbar.sock` for volume control commands. This is used to trigger the Volume OSD from hardware media keys.
 
-Supported commands (send via `socat` or similar):
+Supported commands:
 
 | Command        | Action              |
 |----------------|---------------------|
@@ -87,7 +87,23 @@ Supported commands (send via `socat` or similar):
 | `volume-down`  | Decrease volume     |
 | `volume-mute`  | Toggle mute         |
 
-Example:
+### topbarctl
+
+`topbarctl` is a companion CLI tool for sending IPC commands to a running topbar instance.
+
+```bash
+topbarctl <command>
+```
+
+Examples:
+
+```bash
+topbarctl volume-up
+topbarctl volume-down
+topbarctl volume-mute
+```
+
+You can also send commands manually via `socat`:
 
 ```bash
 echo "volume-up" | socat - UNIX-CONNECT:$XDG_RUNTIME_DIR/topbar.sock
@@ -129,6 +145,8 @@ topbar/
 │       ├── screen_rec.vala
 │       ├── tray.vala
 │       └── utils.vala
+├── tools/
+│   └── topbarctl.vala          # CLI IPC client
 ├── scripts/
 │   ├── install.sh              # Build and install script
 │   └── toggle.sh               # Start/restart script
