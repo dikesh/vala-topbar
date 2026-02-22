@@ -20,8 +20,7 @@ namespace Topbar {
     }
 
     private DateTimeService () {
-      // Update time every 100 ms
-      Timeout.add (100, () => {
+      Timeout.add (250, () => {
         // Datetime
         var curr_datetime = show_utc ? new DateTime.now_utc () : new DateTime.now_local ();
         if (datetime == curr_datetime)return true;
@@ -51,7 +50,7 @@ namespace Topbar {
   private class TimeWidget : Box {
 
     public TimeWidget () {
-      set_spacing (8);
+      Object (spacing: 8, tooltip_text: "Click to toggle between Local and UTC time");
 
       var time_button = new Button ();
       append (new Image.from_icon_name ("preferences-system-time-symbolic"));
@@ -69,7 +68,7 @@ namespace Topbar {
     private Popover calendar_popover;
 
     public DateWidget () {
-      set_spacing (8);
+      Object (spacing: 8, tooltip_text: "Click to show / hide calendar");
 
       // Add children
       var date_button = new Button ();

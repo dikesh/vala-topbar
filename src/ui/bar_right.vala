@@ -10,6 +10,7 @@ namespace Topbar {
 
     public class Bluetooth () {
       Object (spacing: 8);
+      set_tooltip_text ("Left click to open launcher\nRight click to toggle power");
       set_css_classes ({ "bar-section", "bluetooth" });
 
       icon = new Image.from_icon_name ("bluetooth-active-symbolic");
@@ -40,7 +41,7 @@ namespace Topbar {
   private class Volume : Box {
 
     public class Volume () {
-      Object (spacing: 8);
+      Object (spacing: 8, tooltip_text: "Scroll to change volume\nLeft Click to toggle mute");
       set_css_classes ({ "bar-section", "volume" });
 
       var volume = VolumeService.get_default ();
@@ -127,6 +128,7 @@ namespace Topbar {
 
     public PowerMenu () {
       set_css_classes ({ "bar-section", "power" });
+      set_tooltip_text ("Click to open Power Menu");
       child = new Image.from_icon_name ("system-shutdown-symbolic");
       clicked.connect (Utils.launch_power_menu);
     }

@@ -41,6 +41,7 @@ namespace Topbar {
 
     public WorkspaceBox (NiriWorkspace workspace, NiriIPC niri) {
       Object (spacing: 8, visible: false);
+      set_tooltip_text ("Left click to focus workspace\nScroll to switch between windows");
       set_css_classes ({ "hl-workspace" });
 
       id = workspace.id;

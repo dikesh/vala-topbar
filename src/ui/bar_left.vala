@@ -6,7 +6,7 @@ namespace Topbar {
   private class Apps : Button {
 
     public Apps () {
-      Object (tooltip_text: "Open Apps");
+      Object (tooltip_text: "Apps Menu");
       set_css_classes ({ "bar-section", "apps" });
       child = new Label ("󰀻");
       clicked.connect (Utils.launch_apps);
@@ -18,6 +18,7 @@ namespace Topbar {
 
     public ColorPicker () {
       set_css_classes ({ "bar-section", "apps" });
+      set_tooltip_text ("Color Picker");
       child = new Label ("");
       clicked.connect (Utils.launch_color_picker);
     }
@@ -31,6 +32,7 @@ namespace Topbar {
 
     public ScreenRec () {
       set_css_classes ({ "bar-section" });
+      set_tooltip_text ("Screen Recorder");
       var recording_icon = new Image.from_icon_name (icon_recording_off);
       child = recording_icon;
 
@@ -52,8 +54,9 @@ namespace Topbar {
     private Revealer revealer;
 
     public Tools () {
-      var btn = new Button ();
-      btn.set_css_classes ({ "bar-section", "apps" });
+      var btn = new Button () {
+        css_classes = { "bar-section", "apps" }, tooltip_text = "Click to show / hide tools"
+      };
       btn.child = new Label ("");
 
       btn.clicked.connect (() => {
