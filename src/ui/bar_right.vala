@@ -3,38 +3,52 @@ using Gdk;
 
 namespace Topbar {
 
+  private class BtDeviceBox : Box {
+    public BtDeviceBox (string device_name = "", string icon_name = "") {
+      Object (spacing: device_name == "" ? 0 : 8);
+      append (new Image.from_icon_name (icon_name));
+      append (new Label (device_name));
+    }
+  }
+
   private class Bluetooth : Box {
 
-    Image icon;
-    Label label;
-
     public class Bluetooth () {
-      Object (spacing: 8);
       set_tooltip_text ("Left click to open launcher\nRight click to toggle power");
       set_css_classes ({ "bar-section", "bluetooth" });
 
-      icon = new Image.from_icon_name ("bluetooth-active-symbolic");
-      label = new Label ("");
-
-      append (icon);
-      append (label);
-
       var bt = BluetoothService.get_default ();
-      bt.updated.connect (() => {
-        icon.icon_name = bt.icon_name;
-        label.label = bt.device_name;
-        label.visible = bt.powered;
-        spacing = bt.device_name == "" ? 0 : 8;
+      bt.updated.connect (() => render (bt));
+      render (bt);
+
+      var click = new GestureClick ();
+      click.set_button (0);
+      click.pressed.connect ((gesture, n_press, x, y) => {
+        var btn_clicked = gesture.get_current_button ();
+        if (btn_clicked == BUTTON_PRIMARY)Utils.launch_bluetooth_menu ();
+        else if (btn_clicked == BUTTON_SECONDARY)bt.toggle_power ();
       });
+      add_controller (click);
+    }
 
-      var left_click = new GestureClick ();
-      left_click.pressed.connect (() => Utils.launch_bluetooth_menu ());
-      add_controller (left_click);
+    private void render (BluetoothService bt) {
+      remove_all_children ();
+      if (!bt.powered)append (new BtDeviceBox ("", "bluetooth-disabled-symbolic"));
+      else if (bt.devices.size == 0)append (new BtDeviceBox ("", "bluetooth-active-symbolic"));
+      else {
+        foreach (var device in bt.devices.values) {
+          append (new BtDeviceBox (device.name, device.icon));
+        }
+      }
+      spacing = bt.devices.size == 0 ? 0 : 8;
+    }
 
-      var right_click = new GestureClick ();
-      right_click.set_button (BUTTON_SECONDARY);
-      right_click.pressed.connect (() => bt.toggle_power ());
-      add_controller (right_click);
+    private void remove_all_children () {
+      var child = get_first_child ();
+      while (child != null) {
+        remove (child);
+        child = get_first_child ();
+      }
     }
   }
 

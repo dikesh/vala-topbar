@@ -6,9 +6,14 @@ namespace Topbar {
   const string BUS_NAME = "org.bluez";
   const string ADAPTER_PATH = "/org/bluez/hci0";
 
-  public struct BluetoothDeviceInfo {
+  public class BluetoothDeviceInfo : Object {
     public string name;
     public string icon;
+
+    public BluetoothDeviceInfo (string name = "", string icon = "") {
+      this.name = name;
+      this.icon = icon;
+    }
   }
 
   public class BluetoothService : Object {
@@ -17,9 +22,9 @@ namespace Topbar {
 
     private DBusConnection ? bus;
     public bool powered = false;
-    public string device_name;
-    public string icon_name;
+    public HashMap<string, BluetoothDeviceInfo> devices;
 
+    private bool needs_update = false;
     public signal void updated ();
 
     public static BluetoothService get_default () {
@@ -28,6 +33,7 @@ namespace Topbar {
     }
 
     private BluetoothService () {
+      devices = new HashMap<string, BluetoothDeviceInfo>();
       init.begin ();
     }
 
@@ -52,35 +58,9 @@ namespace Topbar {
       }
     }
 
-    private async void refresh () {
-
-      if (bus == null)return;
-
-      try {
-        var value = yield get_bt_property (ADAPTER_PATH, "Powered", "org.bluez.Adapter1");
-
-        var prev_powered = powered;
-        powered = value.get_boolean ();
-
-        if (prev_powered != powered) {
-          icon_name = powered ? "bluetooth-active-symbolic" : "bluetooth-disabled-symbolic";
-          updated ();
-        }
-
-
-        BluetoothDeviceInfo info = yield find_connected_device ();
-
-        if (info.name != device_name) {
-
-          device_name = info.name;
-          icon_name = (device_name == "") ? "bluetooth-symbolic" : info.icon + "-symbolic";
-          updated ();
-        }
-      } catch (Error e) {
-        warning ("Bluetooth refresh failed: %s", e.message);
-      }
-    }
-
+    /**
+     * Property changed handler
+     */
     private void on_properties_changed (DBusConnection conn,
                                         string ? sender,
                                         string object_path,
@@ -88,11 +68,41 @@ namespace Topbar {
                                         string signal_name,
                                         Variant parameters) {
       // parameters structure = (s a{sv} as)
-
       string iface = parameters.get_child_value (0).get_string (null);
-      if (iface == "org.bluez.Adapter1" || iface == "org.bluez.Device1")refresh.begin ();
+
+      if ((iface == "org.bluez.Adapter1" || iface == "org.bluez.Device1") && !needs_update) {
+        needs_update = true;
+        Timeout.add_once (50, () => {
+          needs_update = false;
+          refresh.begin ();
+        });
+      }
     }
 
+    /**
+     * Refresh
+     */
+    private async void refresh () {
+
+      if (bus == null)return;
+
+      try {
+        // Check whether is powered
+        var value = yield get_bt_property (ADAPTER_PATH, "Powered", "org.bluez.Adapter1");
+
+        powered = value.get_boolean ();
+
+        if (powered)yield set_connected_devices ();
+
+        updated ();
+      } catch (Error e) {
+        warning ("Bluetooth refresh failed: %s", e.message);
+      }
+    }
+
+    /**
+     * Get Device paths
+     */
     private async ArrayList<string> get_device_paths () {
 
       var result = new ArrayList<string> ();
@@ -114,7 +124,8 @@ namespace Topbar {
           Variant entry = objects.get_child_value (i);
           string path = entry.get_child_value (0).get_string (null);
 
-          if (path.contains ("/dev_"))result.add (path);
+          string[] parts = path.split ("/");
+          if (parts.length == 5 && parts[4].has_prefix ("dev_"))result.add (path);
         }
       } catch (Error e) {
         warning ("Device list failed: %s", e.message);
@@ -123,43 +134,47 @@ namespace Topbar {
       return result;
     }
 
-    private async BluetoothDeviceInfo find_connected_device () {
-
-      BluetoothDeviceInfo info = {};
-      info.name = "";
-      info.icon = "";
+    /**
+     * Set Connected devices
+     */
+    private async void set_connected_devices () {
 
       var paths = yield get_device_paths ();
 
-      foreach (string path in paths) {
+      // Clear before setting new ones
+      devices.clear ();
+
+      foreach (var path in paths) {
 
         try {
-
           // Check Connected
           var value = yield get_bt_property (path, "Connected");
 
           if (!value.get_boolean ())continue;
 
+          var device_info = new BluetoothDeviceInfo (path);
+
           // Get Name
           value = yield get_bt_property (path, "Name");
 
-          info.name = value.get_string (null);
+          device_info.name = value.get_string (null);
 
           // Get Icon
           value = yield get_bt_property (path, "Icon");
 
-          info.icon = value.get_string (null);
+          device_info.icon = value.get_string (null) + "-symbolic";
 
-          return info;
+          devices.set (path, device_info);
         } catch (Error e) {
           warning ("Error: %s", e.message);
           continue;
         }
       }
-
-      return info;
     }
 
+    /**
+     * Get Bluetooth Property
+     */
     private async Variant get_bt_property (string path,
                                            string property,
                                            string iface = "org.bluez.Device1") throws Error {
@@ -179,7 +194,10 @@ namespace Topbar {
       return value;
     }
 
-    private async void set_enabled (bool state) {
+    /**
+     * Set Power with specified state
+     */
+    private async void set_power (bool state) {
       try {
         yield bus.call (BUS_NAME,
                         ADAPTER_PATH,
@@ -196,8 +214,11 @@ namespace Topbar {
       }
     }
 
+    /**
+     * Toggle power
+     */
     public void toggle_power () {
-      set_enabled.begin (!powered);
+      set_power.begin (!powered);
     }
   }
 }
