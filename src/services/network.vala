@@ -47,7 +47,7 @@ namespace Topbar {
           var ap = wifi.get_active_access_point ();
 
           if (ap != null) {
-            ssid = (string) ap.get_ssid ().get_data ();
+            ssid = NM.Utils.ssid_to_utf8 (ap.get_ssid ().get_data ());
             icon_name = active_conn.state ==
                         ActiveConnectionState.ACTIVATING ? "network-wireless-acquiring-symbolic" :
                         get_icon (ap.get_strength ());
